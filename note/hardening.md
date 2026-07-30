@@ -34,7 +34,9 @@
 
 1. **`BEListener.onPerLogin` 无条件 `login.allow()`（严重安全）**：强制覆盖服务端封禁/白名单/满员检测结果（`KICK_BANNED/KICK_WHITELIST/KICK_FULL`），可绕过。该方法除一条控制台日志外无正当用途，整体移除。
 2. **`BEListener.onPlayerJoin` 强制传送所有人 + 忽略 `spawn-on-join` 配置**：改为读取 `settings.spawn-on-join` 开关 + `world` null 判空 + 调度时 `isOnline` 校验 + 不再每次 `reloadConfig`。
+   > **1.2.1 补**：原 `world == null` 判空无效——默认 config `spawn: {}` 时 `getString("spawn.world")` 返回 null，而 `Bukkit.getWorld(null)` **直接抛 `IllegalArgumentException(name cannot be null)`**，并非返回 null，导致玩家进服即报错。改为先取字符串、判空后再 `getWorld`。
 3. **`SpawnCommand`/`SetSpawnCommand`**：`Bukkit.getWorld` null NPE；`translateAlternateColorCodes` 对 null 配置 NPE；返回 `false` 导致成功后仍打印用法；每次执行 `reloadConfig`。全部修复（`color` fallback + world 判空 + 成功返回 true + 去 reloadConfig + 显式 `COMMAND` 传送 cause）。
+   > **1.2.1 补**：同上，`SpawnCommand` 的 `Bukkit.getWorld(getString(...))` 在未设置出生点时也会抛 `name cannot be null`（而非返回 null）；已改为先取字符串判空再查。
 4. **`RegistryHandler`**：`schematicsFolder` 类加载时依赖 `instance`（`ExceptionInInitializerError` 风险）→ 双检锁懒加载；`saveSchematic` `getResourceAsStream` null NPE（不被 IOException 捕获）→ 判空 + 改回 try-with-resources；`getItem` null 静默改变配方语义 → 记日志。
 
 ## 五、schematics / items
