@@ -59,8 +59,14 @@ public class ExoticItems {
     }
 
     public static void registerItems() {
-        (new SlimefunItem(ExoticGarden.instance.miscItemGroup, GoldKeLa, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
-                SlimefunItem.getById("FERTILIZER_WHEAT").getItem(), null, null, null, null, null, null, null, null}, CustomItemStack.create(GoldKeLa.item(), 16))).register(ExoticGarden.instance);
+        // FERTILIZER_WHEAT 为 Slimefun 原版物品；若 REF 缺失则跳过注册，避免空配方被空手合成刷物品。
+        ItemStack fertilizerWheat = ExoticGarden.getItem("FERTILIZER_WHEAT");
+        if (fertilizerWheat != null) {
+            (new SlimefunItem(ExoticGarden.instance.miscItemGroup, GoldKeLa, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
+                    fertilizerWheat, null, null, null, null, null, null, null, null}, CustomItemStack.create(GoldKeLa.item(), 16))).register(ExoticGarden.instance);
+        } else {
+            ExoticGarden.instance.getLogger().severe("FERTILIZER_WHEAT 未在 Slimefun 中找到，跳过 GoldKeLa 注册以避免空配方刷物品。");
+        }
         (new SlimefunItem(ExoticGarden.instance.techItemGroup, SeedAnalyzer_Core, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.COOLING_UNIT.item(), SlimefunItems.SYNTHETIC_DIAMOND.item(), SlimefunItems.HEATING_COIL.item(), SlimefunItems.COOLING_UNIT.item(), SlimefunItems.BIO_REACTOR.item(), SlimefunItems.HEATING_COIL.item(), SlimefunItems.COOLING_UNIT.item(), SlimefunItems.BIG_CAPACITOR.item(), SlimefunItems.HEATING_COIL.item()
         })).register(ExoticGarden.instance);
         (new SlimefunItem(ExoticGarden.instance.miscItemGroup, Yeast_1, ExoticGardenRecipeTypes.YeastCulturer, new ItemStack[]{null, null, null, null, new ItemStack(Material.HAY_BLOCK), null, null, null, null
