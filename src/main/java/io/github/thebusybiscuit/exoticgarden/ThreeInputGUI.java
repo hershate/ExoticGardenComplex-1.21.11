@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -43,8 +44,10 @@ import me.mrCookieSlime.Slimefun.api.inventory.BlockMenuPreset;
 import me.mrCookieSlime.Slimefun.api.item_transport.ItemTransportFlow;
 
 public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlock, EnergyNetComponent {
-    public static final Map<Block, MachineRecipe> processing = new HashMap<>();
-    public static final Map<Block, Integer> progress = new HashMap<>();
+    // 并发安全：Slimefun ticker 按区块并行 tick，不同机器方块会被多个线程同时访问这两个
+    // static 表。HashMap 并发写入会丢数据/损坏结构，故使用 ConcurrentHashMap。
+    public static final Map<Block, MachineRecipe> processing = new ConcurrentHashMap<>();
+    public static final Map<Block, Integer> progress = new ConcurrentHashMap<>();
     private static final int[] border = new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53};
     private static final int[] inputBorder = new int[]{10, 12, 14, 16};
     private static final int[] centerBorder = new int[]{19, 20, 21, 22, 23, 24, 25};
@@ -339,6 +342,13 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
     }
 
     protected void tick(Block b) {
+        BlockMenu menu = BlockStorage.getInventory(b);
+        if (menu == null) {
+            // 方块已不存在（被爆炸/移除等），清理残留状态避免 NPE 与内存泄漏。
+            processing.remove(b);
+            progress.remove(b);
+            return;
+        }
         if (isProcessing(b)) {
 
             int timeleft = progress.get(b);
@@ -355,7 +365,7 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
                 im.setLore(lore);
                 item.setItemMeta(im);
 
-                BlockStorage.getInventory(b).replaceExistingItem(31, item);
+                menu.replaceExistingItem(31, item);
                 if (ChargeableBlock.isChargeable(b)) {
                     if (ChargeableBlock.getCharge(b) < getEnergyConsumption()) {
                         return;
@@ -367,9 +377,19 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
                 }
 
             } else {
+                MachineRecipe recipe = processing.get(b);
+                if (recipe == null) {
+                    // 状态不一致（无配方却进入完成分支），清理后退出，避免 NPE。
+                    progress.remove(b);
+                    return;
+                }
+                // 输出槽放不下时保持处理状态，等下次 tick 重试，避免产物凭空消失。
+                if (!fits(b, recipe.getOutput())) {
+                    return;
+                }
 
-                BlockStorage.getInventory(b).replaceExistingItem(31, CustomItemStack.create(Material.BLACK_STAINED_GLASS_PANE, " "));
-                pushMainItems(b, processing.get(b).getOutput());
+                menu.replaceExistingItem(31, CustomItemStack.create(Material.BLACK_STAINED_GLASS_PANE, " "));
+                pushMainItems(b, recipe.getOutput());
                 pushSubItems(b, selectSubItem(getSubRecipes()));
                 progress.remove(b);
                 processing.remove(b);
@@ -377,10 +397,6 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
 
         } else {
 
-            BlockMenu menu = BlockStorage.getInventory(b);
-            if (menu == null) {
-                return;
-            }
             MachineRecipe r = null;
             Map<Integer, Integer> found = new HashMap<>();
             for (MachineRecipe recipe : this.recipes) {

@@ -100,7 +100,8 @@ public class Kitchen extends MultiBlockMachine {
                     return;
                 }
 
-                for (int i = 0; i < inv.getContents().length; i++) {
+                // 消耗范围与匹配范围（matchCount）一致，避免误吞玩家放入 dispenser 的多余物品。
+                for (int i = 0; i < matchCount; i++) {
                     ItemStack item = inv.getItem(i);
 
                     if (item != null) {

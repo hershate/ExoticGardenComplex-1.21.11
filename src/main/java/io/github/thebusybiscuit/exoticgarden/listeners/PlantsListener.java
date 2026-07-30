@@ -136,7 +136,11 @@ public class PlantsListener implements Listener {
             final int worldLimit = getWorldBorder(world);
 
             if (random.nextInt(100) < cfg.getInt("chances.BUSH")) {
-                Berry berry = ExoticGarden.getBerries().get(random.nextInt(ExoticGarden.getBerries().size()));
+                List<Berry> berries = ExoticGarden.getBerries();
+                if (berries.isEmpty()) {
+                    return;
+                }
+                Berry berry = berries.get(random.nextInt(berries.size()));
                 if (berry.getType().equals(PlantType.ORE_PLANT)) return;
 
                 int chunkX = e.getChunk().getX();
@@ -159,7 +163,11 @@ public class PlantsListener implements Listener {
                     }
                 }
             } else if (random.nextInt(100) < cfg.getInt("chances.TREE")) {
-                Tree tree = ExoticGarden.getTrees().get(random.nextInt(ExoticGarden.getTrees().size()));
+                List<Tree> trees = ExoticGarden.getTrees();
+                if (trees.isEmpty()) {
+                    return;
+                }
+                Tree tree = trees.get(random.nextInt(trees.size()));
 
                 int chunkX = e.getChunk().getX();
                 int chunkZ = e.getChunk().getZ();
