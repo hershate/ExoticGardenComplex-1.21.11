@@ -16,6 +16,7 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Dispenser;
 import org.bukkit.block.Furnace;
 import org.bukkit.entity.Player;
@@ -24,6 +25,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 
@@ -38,17 +40,25 @@ public class Kitchen extends MultiBlockMachine {
         this.plugin = plugin;
     }
 
-    @Nonnull
+    /**
+     * 在多方块结构周围四向查找熔炉。
+     *
+     * <p>多方块结构可能被玩家破坏/改造。原实现对 SOUTH 分支无条件强转，
+     * 当四面都不是熔炉时抛 {@link ClassCastException}。现改为先查找再强转，
+     * 找不到返回 {@code null}，由 {@link #onInteract} 友好提示。</p>
+     */
+    @Nullable
     private static Furnace locateFurnace(@Nonnull Block b) {
-        if (b.getRelative(BlockFace.EAST).getType() == Material.FURNACE) {
-            return (Furnace) PaperLib.getBlockState(b.getRelative(BlockFace.EAST), false).getState();
-        } else if (b.getRelative(BlockFace.WEST).getType() == Material.FURNACE) {
-            return (Furnace) PaperLib.getBlockState(b.getRelative(BlockFace.WEST), false).getState();
-        } else if (b.getRelative(BlockFace.NORTH).getType() == Material.FURNACE) {
-            return (Furnace) PaperLib.getBlockState(b.getRelative(BlockFace.NORTH), false).getState();
-        } else {
-            return (Furnace) PaperLib.getBlockState(b.getRelative(BlockFace.SOUTH), false).getState();
+        for (BlockFace face : new BlockFace[] {BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH}) {
+            Block relative = b.getRelative(face);
+            if (relative.getType() == Material.FURNACE) {
+                BlockState state = PaperLib.getBlockState(relative, false).getState();
+                if (state instanceof Furnace) {
+                    return (Furnace) state;
+                }
+            }
         }
+        return null;
     }
 
     @Override
@@ -56,14 +66,25 @@ public class Kitchen extends MultiBlockMachine {
         Block dispenser = b.getRelative(BlockFace.DOWN);
 
         Furnace furnace = locateFurnace(dispenser);
+        if (furnace == null) {
+            Slimefun.getLocalization().sendMessage(p, "machines.pattern-not-found", true);
+            return;
+        }
         FurnaceInventory furnaceInventory = furnace.getInventory();
 
+        // dispenser 同样可能被改造；未校验直接强转会 ClassCastException。
+        if (dispenser.getType() != Material.DISPENSER) {
+            Slimefun.getLocalization().sendMessage(p, "machines.pattern-not-found", true);
+            return;
+        }
         Inventory inv = ((Dispenser) dispenser.getState()).getInventory();
         List<ItemStack[]> inputs = RecipeType.getRecipeInputList(this);
 
         recipe:
         for (ItemStack[] input : inputs) {
-            for (int i = 0; i < inv.getContents().length; i++) {
+            // 配方数组长度需覆盖参与比对的槽位，避免短配方数组越界 (AIOOBE)。
+            int matchCount = Math.min(inv.getContents().length, input.length);
+            for (int i = 0; i < matchCount; i++) {
                 if (!SlimefunUtils.isItemSimilar(inv.getContents()[i], input[i], true))
                     continue recipe;
             }

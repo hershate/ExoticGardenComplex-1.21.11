@@ -216,6 +216,21 @@ public class Schematic {
             // Get blocks
             byte[] blockId = getChildTag(schematic, "Blocks", ByteArrayTag.class).getValue();
             byte[] blockData = getChildTag(schematic, "Data", ByteArrayTag.class).getValue();
+
+            // 维度合法性校验：拒绝 0/负维度，并校验 blocks/data 数组长度与
+            // width*length*height 一致，否则 paste 时的索引计算 (y*width*length + z*width + x)
+            // 会越界 (AIOOBE)。schematic 文件可能被替换/损坏，不可信任。
+            if (width <= 0 || length <= 0 || height <= 0) {
+                throw new IllegalArgumentException("Invalid schematic dimensions: " + width + "x" + length + "x" + height);
+            }
+            long expected = (long) width * (long) length * (long) height;
+            if ((long) blockId.length != expected) {
+                throw new IllegalArgumentException("Schematic Blocks length (" + blockId.length + ") does not match dimensions (" + expected + ")");
+            }
+            if ((long) blockData.length < expected) {
+                throw new IllegalArgumentException("Schematic Data length (" + blockData.length + ") is smaller than dimensions (" + expected + ")");
+            }
+
             byte[] addId = new byte[0];
             short[] blocks = new short[blockId.length]; // Have to later combine IDs
 
