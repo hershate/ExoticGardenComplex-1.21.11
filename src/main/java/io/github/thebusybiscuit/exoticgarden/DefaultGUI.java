@@ -66,6 +66,10 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
     // recipes 在注册后固定，方块销毁/tick 发现菜单缺失时清理条目。
     private final Map<Block, IdleMatchCache> idleMatchCache = new ConcurrentHashMap<>();
 
+    // 已解析的 Slimefun 物品按方块缓存：避免每 tick 调用 BlockStorage.check（定位→id→SF 物品）。
+    // 机器方块的 SF 物品在其生命周期内不变；随方块销毁 / 菜单失效一同清理（与 idleMatchCache 同生命周期）。
+    private final Map<Block, SlimefunItem> sfItemCache = new ConcurrentHashMap<>();
+
     // 进度条基础物品 / 副产物列表的懒缓存（各子类返回值恒定，缓存零风险）。
     private ItemStack cachedProgressBar;
     private List<DefaultSubRecipe> cachedSubRecipes;
@@ -145,6 +149,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
                 DefaultGUI.progress.remove(b);
                 DefaultGUI.processing.remove(b);
                 DefaultGUI.this.idleMatchCache.remove(b);
+                DefaultGUI.this.sfItemCache.remove(b);
             }
         });
         addItemHandler(new BlockTicker() {
@@ -225,6 +230,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
                 DefaultGUI.progress.remove(b);
                 DefaultGUI.processing.remove(b);
                 DefaultGUI.this.idleMatchCache.remove(b);
+                DefaultGUI.this.sfItemCache.remove(b);
             }
         });
         addItemHandler(new me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker() {
@@ -378,6 +384,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
             processing.remove(b);
             progress.remove(b);
             idleMatchCache.remove(b);
+            sfItemCache.remove(b);
             return;
         }
         if (isProcessing(b)) {
@@ -391,21 +398,28 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
                     return;
                 }
 
-                ItemStack item = progressBar().clone();
-                item.setDurability(MachineHelper.getDurability(item, timeleft, current.getTicks()));
-                ItemMeta im = item.getItemMeta();
-                im.setDisplayName(" ");
-                List<String> lore = new ArrayList<>(3);
-                lore.add(MachineHelper.getProgress(timeleft, current.getTicks()));
-                lore.add("");
-                lore.add(MachineHelper.getTimeLeft(timeleft / 2));
-                im.setLore(lore);
-                item.setItemMeta(im);
+                // 进度条为纯显示：仅当有人正在查看 GUI 时才重建（clone + meta + replace）。
+                // 无人查看的加工机器是常态，跳过可消除每 tick 的 ItemStack 克隆、meta 改写、
+                // StringBuilder（getProgress/getTimeLeft）与 replaceExistingItem（含 markDirty）开销。
+                // hasViewer() 经 toInventory() 返回内部 inv 字段（可能为 null，判空后安全）+ getViewers().isEmpty()。
+                // 能量消耗与进度递减始终执行（游戏逻辑，与观看者无关）。
+                if (menu.hasViewer()) {
+                    ItemStack item = progressBar().clone();
+                    item.setDurability(MachineHelper.getDurability(item, timeleft, current.getTicks()));
+                    ItemMeta im = item.getItemMeta();
+                    im.setDisplayName(" ");
+                    List<String> lore = new ArrayList<>(3);
+                    lore.add(MachineHelper.getProgress(timeleft, current.getTicks()));
+                    lore.add("");
+                    lore.add(MachineHelper.getTimeLeft(timeleft / 2));
+                    im.setLore(lore);
+                    item.setItemMeta(im);
 
-                menu.replaceExistingItem(31, item);
-                // 单次解析 Slimefun 物品：原 ChargeableBlock.isChargeable/getCharge/addCharge
-                // 各调用一次 BlockStorage.check（共 3 次），此处合并为 1 次。
-                SlimefunItem sfItem = BlockStorage.check(b);
+                    menu.replaceExistingItem(31, item);
+                }
+                // 单次解析 Slimefun 物品并按方块缓存（原 ChargeableBlock.isChargeable/getCharge/addCharge
+                // 各调用一次 BlockStorage.check 共 3 次，此处合并为 1 次且按方块缓存）。
+                SlimefunItem sfItem = resolveSfItem(b);
                 if (sfItem instanceof EnergyNetComponent component && component.isChargeable()) {
                     if (component.getCharge(b.getLocation()) < getEnergyConsumption()) {
                         return;
@@ -491,6 +505,27 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
             cachedSubRecipes = cached;
         }
         return cached;
+    }
+
+    /**
+     * 解析方块对应的 Slimefun 物品（按方块缓存，仅缓存非 null 结果）。
+     *
+     * <p>机器方块的 SF 物品在其生命周期内不变，无需每 tick 重复 {@code BlockStorage.check}
+     * （定位区块→读取 id→SlimefunItem.getById）。仅在尚未缓存时查一次并记住；
+     * null 不缓存（方块刚放下、存储尚未写入的瞬态），下次 tick 再查。随方块销毁 /
+     * 菜单失效（{@link #tick} 中 menu==null）一同 {@code remove}，生命周期与 processing/
+     * progress/idleMatchCache 完全一致。</p>
+     */
+    private SlimefunItem resolveSfItem(Block b) {
+        SlimefunItem cached = sfItemCache.get(b);
+        if (cached != null) {
+            return cached;
+        }
+        SlimefunItem item = BlockStorage.check(b);
+        if (item != null) {
+            sfItemCache.put(b, item);
+        }
+        return item;
     }
 
     /**
