@@ -2,11 +2,10 @@ package io.github.thebusybiscuit.exoticgarden;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -55,6 +54,33 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
     private static final int[] subSlotSign = new int[]{28, 29};
     private static final int[] mainSlotSign = new int[]{33, 34};
     protected final List<MachineRecipe> recipes = new ArrayList<>();
+
+    // tick 内部使用的槽位常量（避免每次 new int[]）。对外公开的 getInputSlots()/
+    // getOutputMainSlots()/getOutputSubSlots() 仍返回新数组（cargo/ItemTransport 可能持有
+    // 并比对，保持原行为不变）。
+    private static final int[] INPUT_SLOTS = new int[]{11, 13, 15};
+    private static final int[] MAIN_OUTPUT_SLOTS = new int[]{42, 43};
+    private static final int[] SUB_OUTPUT_SLOTS = new int[]{37, 38};
+
+    // idle 机器“输入签名”缓存：输入（引用 + 数量）未变时跳过全量配方匹配。
+    private final Map<Block, IdleMatchCache> idleMatchCache = new ConcurrentHashMap<>();
+
+    // 进度条基础物品 / 副产物列表的懒缓存（各子类返回值恒定，缓存零风险）。
+    private ItemStack cachedProgressBar;
+    private List<DefaultSubRecipe> cachedSubRecipes;
+
+    /** idle 匹配缓存条目：输入槽引用快照 + 数量 + 上次命中的配方（null=上次无匹配）。 */
+    private static final class IdleMatchCache {
+        final ItemStack[] snapshot;
+        final int[] amounts;
+        final MachineRecipe recipe;
+
+        IdleMatchCache(ItemStack[] snapshot, int[] amounts, MachineRecipe recipe) {
+            this.snapshot = snapshot;
+            this.amounts = amounts;
+            this.recipe = recipe;
+        }
+    }
 
 
     public ThreeInputGUI(ItemGroup category, ItemStack item, String name, RecipeType recipeType, ItemStack[] recipe) {
@@ -117,6 +143,7 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
                 }
                 ThreeInputGUI.progress.remove(b);
                 ThreeInputGUI.processing.remove(b);
+                ThreeInputGUI.this.idleMatchCache.remove(b);
             }
         });
         addItemHandler(new BlockTicker() {
@@ -334,14 +361,11 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
         if (subRecipes == null || subRecipes.isEmpty()) {
             return null;
         }
-        int random = (int) (Math.random() * subRecipes.size());
-        return subRecipes.get(random);
+        return subRecipes.get(ThreadLocalRandom.current().nextInt(subRecipes.size()));
     }
 
     private boolean willOutput(DefaultSubRecipe recipe) {
-        Random random = new Random();
-        int point = random.nextInt(10000);
-        return (point < recipe.getChance());
+        return ThreadLocalRandom.current().nextInt(10000) < recipe.getChance();
     }
 
     protected void tick(Block b) {
@@ -350,34 +374,37 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
             // 方块已不存在（被爆炸/移除等），清理残留状态避免 NPE 与内存泄漏。
             processing.remove(b);
             progress.remove(b);
+            idleMatchCache.remove(b);
             return;
         }
         if (isProcessing(b)) {
 
             int timeleft = progress.get(b);
             if (timeleft > 0) {
+                MachineRecipe current = processing.get(b);
 
-                ItemStack item = getProgressBar().clone();
-                item.setDurability(MachineHelper.getDurability(item, timeleft, processing.get(b).getTicks()));
+                ItemStack item = progressBar().clone();
+                item.setDurability(MachineHelper.getDurability(item, timeleft, current.getTicks()));
                 ItemMeta im = item.getItemMeta();
                 im.setDisplayName(" ");
-                List<String> lore = new ArrayList<>();
-                lore.add(MachineHelper.getProgress(timeleft, processing.get(b).getTicks()));
+                List<String> lore = new ArrayList<>(3);
+                lore.add(MachineHelper.getProgress(timeleft, current.getTicks()));
                 lore.add("");
                 lore.add(MachineHelper.getTimeLeft(timeleft / 2));
                 im.setLore(lore);
                 item.setItemMeta(im);
 
                 menu.replaceExistingItem(31, item);
-                if (ChargeableBlock.isChargeable(b)) {
-                    if (ChargeableBlock.getCharge(b) < getEnergyConsumption()) {
+                // 单次解析 Slimefun 物品：原 ChargeableBlock.isChargeable/getCharge/addCharge
+                // 各调用一次 BlockStorage.check（共 3 次），此处合并为 1 次。
+                SlimefunItem sfItem = BlockStorage.check(b);
+                if (sfItem instanceof EnergyNetComponent component && component.isChargeable()) {
+                    if (component.getCharge(b.getLocation()) < getEnergyConsumption()) {
                         return;
                     }
-                    ChargeableBlock.addCharge(b, -getEnergyConsumption());
-                    progress.put(b, timeleft - 1);
-                } else {
-                    progress.put(b, timeleft - 1);
+                    component.addCharge(b.getLocation(), -getEnergyConsumption());
                 }
+                progress.put(b, timeleft - 1);
 
             } else {
                 MachineRecipe recipe = processing.get(b);
@@ -387,66 +414,154 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
                     return;
                 }
                 // 输出槽放不下时保持处理状态，等下次 tick 重试，避免产物凭空消失。
-                if (!fits(b, recipe.getOutput())) {
+                if (!MachineIO.fits(menu, MAIN_OUTPUT_SLOTS, recipe.getOutput())) {
                     return;
                 }
 
                 menu.replaceExistingItem(31, CustomItemStack.create(Material.BLACK_STAINED_GLASS_PANE, " "));
-                pushMainItems(b, recipe.getOutput());
-                pushSubItems(b, selectSubItem(getSubRecipes()));
+                MachineIO.push(menu, MAIN_OUTPUT_SLOTS, recipe.getOutput());
+                pushSubItems(menu, selectSubItem(subRecipes()));
                 progress.remove(b);
                 processing.remove(b);
             }
 
         } else {
-
-            MachineRecipe r = null;
-            Map<Integer, Integer> found = new HashMap<>();
-            for (MachineRecipe recipe : this.recipes) {
-                found.clear();
-                boolean matched = true;
-                for (ItemStack input : recipe.getInput()) {
-                    if (input == null) {
-                        continue;
-                    }
-                    int needed = input.getAmount();
-                    int matchedSlot = -1;
-                    for (int slot : getInputSlots()) {
-                        if (found.containsKey(slot)) {
-                            // 每个输入槽只匹配一个配方输入，避免重复计数导致刷物品
-                            continue;
-                        }
-                        ItemStack slotItem = menu.getItemInSlot(slot);
-                        if (slotItem != null
-                                && slotItem.getAmount() >= needed
-                                && SlimefunUtils.isItemSimilar(slotItem, input, true)) {
-                            matchedSlot = slot;
-                            break;
-                        }
-                    }
-                    if (matchedSlot < 0) {
-                        matched = false;
+            // idle：输入签名（引用 + 数量）未变时跳过全量配方匹配 —— 稳态机器的常态。
+            MachineRecipe r;
+            int[] consume;
+            IdleMatchCache cached = idleMatchCache.get(b);
+            if (cached != null && inputUnchanged(cached, menu, INPUT_SLOTS)) {
+                r = cached.recipe;
+                if (r == null) {
+                    return; // 上次无匹配，输入未变 → 仍无匹配，跳过
+                }
+                consume = deriveConsume(r, menu, INPUT_SLOTS);
+            } else {
+                // 冷路径：全量匹配。consume[p]>0 表示该输入槽已分配给某配方输入（不重复计数，防刷物品）。
+                consume = new int[INPUT_SLOTS.length];
+                r = null;
+                for (MachineRecipe recipe : this.recipes) {
+                    Arrays.fill(consume, 0);
+                    if (matchRecipe(recipe, menu, INPUT_SLOTS, consume)) {
+                        r = recipe;
                         break;
                     }
-                    found.put(matchedSlot, needed);
                 }
-
-                if (matched) {
-                    r = recipe;
-                    break;
-                }
+                idleMatchCache.put(b, snapshotInput(menu, INPUT_SLOTS, r));
             }
-            if (r != null) {
 
-                if (!fits(b, r.getOutput())) {
+            if (r != null) {
+                if (!MachineIO.fits(menu, MAIN_OUTPUT_SLOTS, r.getOutput())) {
                     return;
                 }
-                for (Map.Entry<Integer, Integer> entry : found.entrySet()) {
-                    menu.consumeItem(entry.getKey(), entry.getValue());
+                for (int p = 0; p < INPUT_SLOTS.length; p++) {
+                    if (consume[p] > 0) {
+                        menu.consumeItem(INPUT_SLOTS[p], consume[p]);
+                    }
                 }
                 processing.put(b, r);
                 progress.put(b, r.getTicks());
             }
+        }
+    }
+
+    /** 进度条基础物品的懒缓存（子类 getProgressBar() 返回值恒定）。 */
+    private ItemStack progressBar() {
+        ItemStack cached = cachedProgressBar;
+        if (cached == null) {
+            cached = getProgressBar();
+            cachedProgressBar = cached;
+        }
+        return cached;
+    }
+
+    /** 副产物列表的懒缓存（子类 getSubRecipes() 返回值仅依赖 getLevel()，恒定）。 */
+    private List<DefaultSubRecipe> subRecipes() {
+        List<DefaultSubRecipe> cached = cachedSubRecipes;
+        if (cached == null) {
+            cached = getSubRecipes();
+            cachedSubRecipes = cached;
+        }
+        return cached;
+    }
+
+    /** 输入签名比对：引用相等 + 数量相等（任何变化都判为“已变”，不会误命中）。 */
+    private boolean inputUnchanged(IdleMatchCache cached, BlockMenu menu, int[] slots) {
+        ItemStack[] snap = cached.snapshot;
+        if (snap.length != slots.length) {
+            return false;
+        }
+        int[] snapAmt = cached.amounts;
+        for (int p = 0; p < slots.length; p++) {
+            ItemStack cur = menu.getItemInSlot(slots[p]);
+            if (cur != snap[p]) {
+                return false;
+            }
+            int amt = cur == null ? 0 : cur.getAmount();
+            if (snapAmt[p] != amt) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 捕获当前输入槽签名 + 命中的配方（null=无匹配），写入缓存。 */
+    private IdleMatchCache snapshotInput(BlockMenu menu, int[] slots, MachineRecipe recipe) {
+        int n = slots.length;
+        ItemStack[] snap = new ItemStack[n];
+        int[] amt = new int[n];
+        for (int p = 0; p < n; p++) {
+            ItemStack it = menu.getItemInSlot(slots[p]);
+            snap[p] = it;
+            amt[p] = it == null ? 0 : it.getAmount();
+        }
+        return new IdleMatchCache(snap, amt, recipe);
+    }
+
+    /** 在已清零的 consume 上尝试匹配单个配方；成功则 consume[p] 置为该输入需求量。 */
+    private boolean matchRecipe(MachineRecipe recipe, BlockMenu menu, int[] slots, int[] consume) {
+        for (ItemStack input : recipe.getInput()) {
+            if (input == null) {
+                continue;
+            }
+            int needed = input.getAmount();
+            int matchedSlot = -1;
+            for (int p = 0; p < slots.length; p++) {
+                if (consume[p] != 0) {
+                    continue; // 每个输入槽只匹配一个配方输入，避免重复计数导致刷物品
+                }
+                ItemStack slotItem = menu.getItemInSlot(slots[p]);
+                if (slotItem != null
+                        && slotItem.getAmount() >= needed
+                        && SlimefunUtils.isItemSimilar(slotItem, input, true)) {
+                    matchedSlot = p;
+                    break;
+                }
+            }
+            if (matchedSlot < 0) {
+                return false;
+            }
+            consume[matchedSlot] = needed;
+        }
+        return true;
+    }
+
+    /** 已知 recipe 命中时重建各槽消耗量（单配方扫描，比全量匹配廉价）。 */
+    private int[] deriveConsume(MachineRecipe recipe, BlockMenu menu, int[] slots) {
+        int[] consume = new int[slots.length];
+        matchRecipe(recipe, menu, slots, consume);
+        return consume;
+    }
+
+    /** 副产物放入副输出槽（menu 版，供 tick 复用已取的菜单）。 */
+    private void pushSubItems(BlockMenu menu, DefaultSubRecipe recipe) {
+        if (recipe == null || recipe.getItem() == null) {
+            return;
+        }
+        ItemStack item = recipe.getItem();
+        // fits 检查针对副输出槽（原实现误用主输出槽，副槽满时仍放入而丢失物品）。
+        if (willOutput(recipe) && MachineIO.fits(menu, SUB_OUTPUT_SLOTS, new ItemStack[]{item})) {
+            MachineIO.push(menu, SUB_OUTPUT_SLOTS, new ItemStack[]{item});
         }
     }
 
