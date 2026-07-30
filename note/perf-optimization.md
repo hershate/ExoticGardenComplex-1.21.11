@@ -1,4 +1,4 @@
-# 性能优化要点（1.0.0 → 1.1.0，2026-07-31）
+# 性能优化要点（1.0.0 → 1.1.0 → 1.2.0）
 
 > 分支：`feature/perf-optimization`（从 `master` 拉，保护 1.0.0 检查点）
 > 红线：安全性 / 稳定性 / 兼容性不降；不引入新漏洞；玩家可见行为不变。
@@ -65,7 +65,30 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
 - 未做实机 TPS 回归：建议真实 Paper 1.21.1+ 服务器负载观察（多机器 + 大面积农场）。
 - `PlantsListener.nameLookup` 为遗留空 Map（无读取），不影响性能，未在本次处理。
 
+---
+
+## 六、1.2.0 增量：机器 tick 进度条按观看者门控（2026-07-31）
+
+> 详见 [report/perf/2026-07-31-machine-tick-viewer-gating.md](report/perf/2026-07-31-machine-tick-viewer-gating.md)。
+
+1.1.0 优化了 idle 分支后，**processing 分支每 tick 的进度条显示更新**成为最大残留热点。本次：
+
+1. **进度条按 `hasViewer()` 门控（主）**：加工中、无人查看 GUI 时（常态），跳过整段
+   `clone + meta + getProgress/getTimeLeft(StringBuilder/translate) + replaceExistingItem`。
+   能量消耗与进度递减保持在门控外无条件执行（游戏逻辑）。对打开 GUI 的观看者显示完全不变。
+   基准：无人查看 ~225→~2 ns（**约 75–118×**，多次运行区间）。
+2. **已解析 SF 物品按方块缓存（次）**：`BlockStorage.check` 每加工机器每 tick 调一次；
+   机器方块 SF 物品生命周期内不变，新增 `sfItemCache`（`ConcurrentHashMap<Block, SlimefunItem>`），
+   清理与 `processing`/`progress`/`idleMatchCache` 同生命周期。基准：6.9→4.4 ns（**1.58×**，保守；
+   真实 `BlockStorage.check` 更重，收益更大）。
+3. **顺手修复** ThreeInputGUI 第二构造器 break handler 漏清 `idleMatchCache`（内存泄漏）。
+
+基准扩展：新增 [SimMenu](../benchmark/src/SimMenu.java) 模型 + `oldTickDisplay`/`newTickDisplay` +
+`BlockStorageSim`/`cachedResolve`；正确性断言由 3 项增至 **5 项**（新增“进度条门控等价”“SFItem 缓存等价”）。
+
 ## 提交结构（细粒度 commit）
+
+1.1.0：
 
 1. `perf(benchmark)`: 新增算法层离线基准 + result.txt 基线
 2. `perf(machine)`: MachineIO.fits 零 clone
@@ -73,3 +96,10 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
 4. `perf(harvest)`: ExoticGarden berry/tree 索引 + 草掉落数组缓存
 5. `perf(listener)`: PlantsListener 索引化 + 头过滤 + 配置缓存
 6. `docs/test/chore`: 报告、版本 1.1.0、benchmark 纳入 test.sh
+
+1.2.0：
+
+1. `perf(benchmark)`: 新增 SimMenu + tick 显示构建 / SFItem 解析的旧新对照与正确性断言
+2. `perf(machine)`: DefaultGUI/ThreeInputGUI 进度条按 hasViewer 门控 + SFItem 按方块缓存
+3. `fix(machine)`: ThreeInputGUI 第二构造器 break handler 补清 idleMatchCache/sfItemCache（修泄漏）
+4. `docs/test/chore`: 报告、版本 1.2.0、test.sh 产物名、note/benchmark 文档更新

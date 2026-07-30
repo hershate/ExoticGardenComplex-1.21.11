@@ -1,6 +1,6 @@
 # 静态测试要点
 
-> 建立：2026-07-30（2026-07-31 更新：新增第 10 维度“基准正确性”）
+> 建立：2026-07-30（2026-07-31 更新：新增第 10 维度“基准正确性”；1.2.0 基准等价性断言由 3 项扩至 5 项）
 > 脚本：`test/test.sh`（`bash test/test.sh` 运行）
 > 结果：**10 维度 51 项，全部通过 (51/51)**
 
@@ -12,7 +12,7 @@
 - 每次运行都会重新 `mvn clean package` 编译，确保测试针对最新代码
 - 退出码：0=全过，1=有失败（可接入 CI）
 
-## 2. 九个测试维度
+## 2. 十个测试维度
 
 | # | 维度 | 覆盖要点 |
 |---|---|---|
@@ -25,7 +25,7 @@
 | 7 | jar 内容结构 | 含主类、`com/be` 包、17 个 `.schematic`、config.yml、storage.yml；**无** GuizhanLib/Fluffy/xzavier 类；bstats 已正确 shade/relocate |
 | 8 | 源码迁移完整性 | 无 `new CustomItemStack(`、`Material.GRASS`、`Particle.VILLAGER_*`、`BlockDataController`、`StorageCacheUtils.`/`getBlockDataController` 调用、xzavier/GuizhanLib/Fluffy import |
 | 9 | REF 兼容性 | 附属 **48 个** `io.github.thebusybiscuit.slimefun4.*` / `me.mrCookieSlime.*` import **逐一验证存在于 REF jar** |
-| 10 | 基准正确性 | 运行 `benchmark/`，校验配方匹配 / fits 的新旧算法**等价性断言全 PASS**（Benchmark.main 在任一断言失败时退出码 1） |
+| 10 | 基准正确性 | 运行 `benchmark/`，校验新旧算法**等价性断言全 PASS**（match / fits / 进度条门控 / SFItem 缓存，共 5 项；`Benchmark.main` 在任一断言失败时退出码 1） |
 
 ## 3. 关键设计：REF 兼容性检查（维度 9）
 
