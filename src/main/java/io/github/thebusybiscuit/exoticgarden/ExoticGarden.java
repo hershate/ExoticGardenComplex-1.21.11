@@ -263,6 +263,10 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         BEPlants.onPlantsRegister();
         BETrees.onTreesRegister();
         BEFoodRegistry.register(this);
+        // BE 注册的草掉落条目需再次应用 grass-drops 过滤（BE 注册晚于 registerItems 的首次过滤，
+        // 否则管理员关闭 grass-drops.<BE 条目> 不生效）。
+        applyGrassDropsFilter();
+        cfg.save();
         //HeadDropFix.onHeadDropFix();
         BECommands.onCommandsRegister();
         Bukkit.getPluginManager().registerEvents(BEListener.getInstance(), ExoticGarden.instance);
@@ -570,20 +574,23 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         ExoticItems.registerItems();
         FoodRegistry.register(this, miscItemGroup, drinksItemGroup, foodItemGroup);
 
-        Iterator<String> iterator = items.keySet().iterator();
-        while (iterator.hasNext()) {
-            String key = iterator.next();
-            cfg.setDefaultValue("grass-drops." + key, true);
-
-            if (!cfg.getBoolean("grass-drops." + key)) {
-                iterator.remove();
-            }
-        }
-
+        applyGrassDropsFilter();
         cfg.save();
 
         for (Tree tree : ExoticGarden.getTrees()) {
             treeFruits.add(tree.getFruitID());
+        }
+    }
+
+    private void applyGrassDropsFilter() {
+        // 让 config 的 grass-drops.<key> 开关对所有草掉落条目生效（含 BE 注册的条目）。
+        Iterator<String> iterator = items.keySet().iterator();
+        while (iterator.hasNext()) {
+            String key = iterator.next();
+            cfg.setDefaultValue("grass-drops." + key, true);
+            if (!cfg.getBoolean("grass-drops." + key)) {
+                iterator.remove();
+            }
         }
     }
 
