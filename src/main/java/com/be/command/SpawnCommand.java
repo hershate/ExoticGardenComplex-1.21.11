@@ -30,7 +30,10 @@ public class SpawnCommand implements CommandExecutor {
 
         ExoticGarden plugin = ExoticGarden.getInstance();
         // 不再每次执行都 reloadConfig；内存 config 在 setspawn 后已是最新。
-        World world = Bukkit.getWorld(plugin.getConfig().getString("spawn.world"));
+        String worldName = plugin.getConfig().getString("spawn.world");
+        // 未设置出生点时 getString 返回 null；Bukkit.getWorld(null) 会直接抛 IllegalArgumentException
+        // (name cannot be null) 而非返回 null，故必须先判空再查。
+        World world = worldName == null ? null : Bukkit.getWorld(worldName);
         // world 可能为 null（未设置 spawn / 世界未加载），原实现构造 null-world Location 后 teleport 会 NPE。
         if (world == null) {
             p.sendMessage(color(plugin.getConfig().getString("messages.error-nospawnpoint"), "&c无出生点设置"));

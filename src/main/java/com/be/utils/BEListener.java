@@ -25,7 +25,10 @@ public class BEListener implements Listener {
             return;
         }
         // 不再每次进服都 reloadConfig（磁盘 IO + 丢弃运行时改动）；内存 config 在 setspawn 后已是最新。
-        World world = Bukkit.getWorld(plugin.getConfig().getString("spawn.world"));
+        String worldName = plugin.getConfig().getString("spawn.world");
+        // 未设置出生点（默认 config 为 spawn: {}）时 getString 返回 null；Bukkit.getWorld(null) 会
+        // 直接抛 IllegalArgumentException(name cannot be null) 而非返回 null，故必须先判空再查。
+        World world = worldName == null ? null : Bukkit.getWorld(worldName);
         // getWorld 在世界未加载/被卸载/名字拼错时返回 null，构造 null-world Location 传送会 NPE。
         if (world == null) {
             return;
