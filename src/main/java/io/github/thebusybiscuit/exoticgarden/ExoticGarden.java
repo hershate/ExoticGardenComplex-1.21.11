@@ -114,9 +114,17 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
     }
 
     public static void sendDrunkMessage(Player player) {
-        Random ramdom = new Random();
-        player.chat(drunkMsg.get(ramdom.nextInt(drunkMsg.size())).replace("%player%", (
-                (Player) Bukkit.getOnlinePlayers().toArray()[ramdom.nextInt(Bukkit.getOnlinePlayers().size())]).getName()));
+        if (drunkMsg.isEmpty()) {
+            return;
+        }
+        // 在线玩家列表可能为空（防御性判空，避免 nextInt(0) 抛 IllegalArgumentException）。
+        java.util.Collection<? extends Player> online = Bukkit.getOnlinePlayers();
+        if (online.isEmpty()) {
+            return;
+        }
+        Player[] onlineArray = online.toArray(new Player[0]);
+        String target = onlineArray[java.util.concurrent.ThreadLocalRandom.current().nextInt(onlineArray.length)].getName();
+        player.chat(drunkMsg.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(drunkMsg.size())).replace("%player%", target));
     }
 
     @Nullable
@@ -1303,6 +1311,12 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
     private void saveSchematic(@Nonnull String id) {
         try (InputStream input = getClass().getResourceAsStream("/schematics/" + id + ".schematic")) {
+            // getResourceAsStream 在资源缺失时返回 null，try-with-resources 不会报错，
+            // 但后续 input.read 会 NPE（且不被 IOException 捕获），中断注册流程。
+            if (input == null) {
+                getLogger().severe("Missing schematic resource in jar: /schematics/" + id + ".schematic");
+                return;
+            }
             try (FileOutputStream output = new FileOutputStream(new File(schematicsFolder, id + ".schematic"))) {
                 byte[] buffer = new byte[1024];
                 int len;
@@ -1403,9 +1417,10 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         this.yamlStorge = YamlConfiguration.loadConfiguration(storge);
         ConfigurationSection section = this.yamlStorge.getConfigurationSection("Players");
         if (section == null) {
-            this.yamlStorge.set("Players", null);
+            // 保存路径必须用插件数据目录的绝对路径；原 "storge.yml" 是相对路径，会写到
+            // 服务器根目录，与其它地方 (getDataFolder()/storge.yml) 不一致，造成数据分裂。
             try {
-                this.yamlStorge.save("storge.yml");
+                this.yamlStorge.save(new File(getDataFolder(), "storge.yml"));
             } catch (IOException e) {
                 e.printStackTrace();
             }
