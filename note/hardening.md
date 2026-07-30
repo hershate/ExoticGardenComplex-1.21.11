@@ -52,6 +52,7 @@
 2. **`sendDrunkMessage` 无在线玩家崩溃**：`nextInt(0)`。判空 + `ThreadLocalRandom`。
 3. **主类 `saveSchematic` `getResourceAsStream` null NPE**：判空。
 4. **`FoodListener` 0-tick 延迟扣除（连点刷饥饿窗口）**：原 `scheduleSyncDelayedTask(0L)` 扣除，当前 tick 物品仍在，快速连点可多次恢复饥饿。改为同步扣除。
+5. **BE 草掉落绕过 `grass-drops` 配置过滤**：BE 注册（`onPlantsRegister/onTreesRegister`）晚于 `registerItems` 的首次过滤，其加入的草掉落条目不受配置开关控制。提取 `applyGrassDropsFilter()` 并在 BE 注册后再次调用。
 
 ## 七、待确认 / 已知（未改动，避免破坏现有行为）
 
@@ -82,3 +83,4 @@ bash test/test.sh   # 9 维度 47 项，47/47 通过
 5. `fix(com.be)`: login.allow 移除 + 命令/RegistryHandler 安全
 6. `fix(core)`: FoodListener 连点 + initDataFromYAML 路径 + sendDrunkMessage + saveSchematic
 7. `docs(note)`: 加固记录
+8. `fix(config)`: BE 草掉落条目应用 grass-drops 过滤
