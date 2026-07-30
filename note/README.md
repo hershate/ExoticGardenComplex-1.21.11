@@ -5,6 +5,7 @@
 - [compile-adaptation.md](compile-adaptation.md) — 编译适配 REF（Slimefun 4.9.5）的依赖调查、API 差异与完整迁移执行记录
 - [non-official-slimefun.md](non-official-slimefun.md) — 声明所依赖的粘液科技为第三方非官方分支（hershate/Slimefun4.1）
 - [testing.md](testing.md) — 静态测试（`test/test.sh`）的设计、九维度覆盖与结果
+- [hardening.md](hardening.md) — 安全性与稳定性加固（崩溃/NPE/刷物品/领地绕过/异步线程等修复）
 
 ## 速览
 
