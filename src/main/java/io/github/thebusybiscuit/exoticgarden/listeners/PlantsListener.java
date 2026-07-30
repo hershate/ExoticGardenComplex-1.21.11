@@ -66,10 +66,20 @@ public class PlantsListener implements Listener {
     private final Config cfg;
     private final ExoticGarden plugin;
     private final BlockFace[] faces = {BlockFace.NORTH, BlockFace.NORTH_EAST, BlockFace.EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH, BlockFace.SOUTH_WEST, BlockFace.WEST, BlockFace.NORTH_WEST};
+    // 配置派生值缓存：cfg 为 enable 时的内存快照（本附属无 reload 机制），缓存避免每事件
+    // 重复 getStringList/getInt（getStringList 每次新建 List）。
+    private final Set<String> worldBlacklist;
+    private final int chanceBush;
+    private final int chanceTree;
+    private final boolean autoGenerate;
 
     public PlantsListener(ExoticGarden plugin) {
         this.plugin = plugin;
         cfg = plugin.getCfg();
+        this.worldBlacklist = new HashSet<>(cfg.getStringList("world-blacklist"));
+        this.chanceBush = cfg.getInt("chances.BUSH");
+        this.chanceTree = cfg.getInt("chances.TREE");
+        this.autoGenerate = cfg.getOrSetDefault("options.auto-generate-plants", true);
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
@@ -120,7 +130,7 @@ public class PlantsListener implements Listener {
 
     @EventHandler
     public void onGenerate(ChunkPopulateEvent e) {
-        if (!cfg.getOrSetDefault("options.auto-generate-plants", true)) {
+        if (!autoGenerate) {
             return;
         }
 
@@ -130,12 +140,12 @@ public class PlantsListener implements Listener {
             return;
         }
 
-        if (!cfg.getStringList("world-blacklist").contains(world.getName())) {
+        if (!worldBlacklist.contains(world.getName())) {
             Random random = ThreadLocalRandom.current();
 
             final int worldLimit = getWorldBorder(world);
 
-            if (random.nextInt(100) < cfg.getInt("chances.BUSH")) {
+            if (random.nextInt(100) < chanceBush) {
                 List<Berry> berries = ExoticGarden.getBerries();
                 if (berries.isEmpty()) {
                     return;
@@ -162,7 +172,7 @@ public class PlantsListener implements Listener {
                         growBush(e, x, z, berry, random, false);
                     }
                 }
-            } else if (random.nextInt(100) < cfg.getInt("chances.TREE")) {
+            } else if (random.nextInt(100) < chanceTree) {
                 List<Tree> trees = ExoticGarden.getTrees();
                 if (trees.isEmpty()) {
                     return;
@@ -268,52 +278,49 @@ public class PlantsListener implements Listener {
 
         if (item != null) {
             e.setCancelled(true);
-            for (Tree tree : ExoticGarden.getTrees()) {
-                if (item.getId().equalsIgnoreCase(tree.getSapling())) {
-                    BlockStorage.clearBlockInfo(e.getLocation());
-                    Schematic.pasteSchematic(e.getLocation(), tree, false);
-                    return true;
-                }
+            Tree tree = plugin.getTreeBySapling(item.getId());
+            if (tree != null) {
+                BlockStorage.clearBlockInfo(e.getLocation());
+                Schematic.pasteSchematic(e.getLocation(), tree, false);
+                return true;
             }
 
-            for (Berry berry : ExoticGarden.getBerries()) {
-                if (item.getId().equalsIgnoreCase(berry.toBush())) {
-                    switch (berry.getType()) {
-                        case BUSH -> e.getLocation().getBlock().setType(Material.OAK_LEAVES, false);
-                        case ORE_PLANT, DOUBLE_PLANT -> {
-                            Block blockAbove = e.getLocation().getBlock().getRelative(BlockFace.UP);
-                            item = BlockStorage.check(blockAbove.getLocation());
-                            if (item != null) return false;
-                            if (!Tag.SAPLINGS.isTagged(blockAbove.getType()) && !Tag.LEAVES.isTagged(blockAbove.getType())) {
-                                switch (blockAbove.getType()) {
-                                    case AIR, CAVE_AIR, SNOW:
-                                        break;
-                                    default:
-                                        return false;
-                                }
+            Berry berry = plugin.getBerryByBush(item.getId());
+            if (berry != null) {
+                switch (berry.getType()) {
+                    case BUSH -> e.getLocation().getBlock().setType(Material.OAK_LEAVES, false);
+                    case ORE_PLANT, DOUBLE_PLANT -> {
+                        Block blockAbove = e.getLocation().getBlock().getRelative(BlockFace.UP);
+                        item = BlockStorage.check(blockAbove.getLocation());
+                        if (item != null) return false;
+                        if (!Tag.SAPLINGS.isTagged(blockAbove.getType()) && !Tag.LEAVES.isTagged(blockAbove.getType())) {
+                            switch (blockAbove.getType()) {
+                                case AIR, CAVE_AIR, SNOW:
+                                    break;
+                                default:
+                                    return false;
                             }
-                            BlockStorage.store(blockAbove, berry.getItem());
-                            e.getLocation().getBlock().setType(Material.OAK_LEAVES, false);
-                            blockAbove.setType(Material.PLAYER_HEAD, false);
-                            Rotatable rotatable = (Rotatable) blockAbove.getBlockData();
-                            rotatable.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
-                            blockAbove.setBlockData(rotatable, false);
-                            PlayerHead.setSkin(blockAbove, PlayerSkin.fromHashCode(berry.getTexture()), true);
                         }
-                        default -> {
-                            e.getLocation().getBlock().setType(Material.PLAYER_HEAD, false);
-                            Rotatable s = (Rotatable) e.getLocation().getBlock().getBlockData();
-                            s.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
-                            e.getLocation().getBlock().setBlockData(s);
-                            PlayerHead.setSkin(e.getLocation().getBlock(), PlayerSkin.fromHashCode(berry.getTexture()), true);
-                        }
+                        BlockStorage.store(blockAbove, berry.getItem());
+                        e.getLocation().getBlock().setType(Material.OAK_LEAVES, false);
+                        blockAbove.setType(Material.PLAYER_HEAD, false);
+                        Rotatable rotatable = (Rotatable) blockAbove.getBlockData();
+                        rotatable.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
+                        blockAbove.setBlockData(rotatable, false);
+                        PlayerHead.setSkin(blockAbove, PlayerSkin.fromHashCode(berry.getTexture()), true);
                     }
-
-                    BlockStorage.clearBlockInfo(e.getLocation());
-                    BlockStorage.store(e.getLocation().getBlock(), berry.getItem());
-                    e.getWorld().playEffect(e.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
-                    break;
+                    default -> {
+                        e.getLocation().getBlock().setType(Material.PLAYER_HEAD, false);
+                        Rotatable s = (Rotatable) e.getLocation().getBlock().getBlockData();
+                        s.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
+                        e.getLocation().getBlock().setBlockData(s);
+                        PlayerHead.setSkin(e.getLocation().getBlock(), PlayerSkin.fromHashCode(berry.getTexture()), true);
+                    }
                 }
+
+                BlockStorage.clearBlockInfo(e.getLocation());
+                BlockStorage.store(e.getLocation().getBlock(), berry.getItem());
+                e.getWorld().playEffect(e.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
             }
 
             return true;
@@ -399,8 +406,10 @@ public class PlantsListener implements Listener {
                     Random random = ThreadLocalRandom.current();
 
                     if (random.nextInt(100) < 6) {
-                        ItemStack[] items = ExoticGarden.getGrassDrops().values().toArray(new ItemStack[0]);
-                        e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation(), items[random.nextInt(items.length)]);
+                        ItemStack[] items = ExoticGarden.getInstance().getGrassDropsArray();
+                        if (items != null && items.length > 0) {
+                            e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation(), items[random.nextInt(items.length)]);
+                        }
                     }
                     if (random.nextInt(100) < 3) {
                         ItemStack grassSeeds = ExoticGarden.getGrassDrops().get("GRASS_SEEDS");
@@ -435,13 +444,9 @@ public class PlantsListener implements Listener {
 
         var item = BlockStorage.check(e.getBlock().getLocation());
 
-        if (item != null) {
-            for (Berry berry : ExoticGarden.getBerries()) {
-                if (item.getId().equalsIgnoreCase(berry.getID())) {
-                    e.setCancelled(true);
-                    return;
-                }
-            }
+        if (item != null && plugin.getBerry(item.getId()) != null) {
+            e.setCancelled(true);
+            return;
         }
 
         dropFruitFromTree(e.getBlock());
@@ -462,13 +467,9 @@ public class PlantsListener implements Listener {
 
         String id = BlockStorage.checkID(e.getBlock());
 
-        if (id != null) {
-            for (Berry berry : ExoticGarden.getBerries()) {
-                if (id.equalsIgnoreCase(berry.getID())) {
-                    e.setCancelled(true);
-                    return;
-                }
-            }
+        if (id != null && plugin.getBerry(id) != null) {
+            e.setCancelled(true);
+            return;
         }
 
 
@@ -558,7 +559,9 @@ public class PlantsListener implements Listener {
                     // inspect a cube at the reference
                     Block fruit = block.getRelative(x, y, z);
                     if (fruit.isEmpty()) continue;
-
+                    // 仅 PLAYER_HEAD 可能是树果（树果在 Schematic/growBush 中均以 PLAYER_HEAD 放置），
+                    // 过滤可跳过 ~26/27 个非头方块的 BlockStorage.check（大幅降低砍树时的查询开销）。
+                    if (fruit.getType() != Material.PLAYER_HEAD) continue;
 
                     Location loc = fruit.getLocation();
                     SlimefunItem check = BlockStorage.check(loc);
@@ -580,66 +583,63 @@ public class PlantsListener implements Listener {
 
         if (item != null) {
             final double random = ThreadLocalRandom.current().nextDouble();
-            for (Tree tree : ExoticGarden.getTrees()) {
-                if (item.getId().equalsIgnoreCase(tree.getSapling())) {
-                    l.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
-                    if (cfg.getDouble("watering-can.chance") >= random) {
-                        BlockStorage.clearBlockInfo(l.getBlock());
-                        Schematic.pasteSchematic(l, tree, false);
-                        return;
-                    }
+            Tree tree = plugin.getTreeBySapling(item.getId());
+            if (tree != null) {
+                l.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
+                if (cfg.getDouble("watering-can.chance") >= random) {
+                    BlockStorage.clearBlockInfo(l.getBlock());
+                    Schematic.pasteSchematic(l, tree, false);
+                    return;
                 }
             }
 
-            for (Berry berry : ExoticGarden.getBerries()) {
-                if (item.getId().equalsIgnoreCase(berry.toBush())) {
-                    l.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
-                    if (cfg.getDouble("watering-can.chance") >= random) {
-                        switch (berry.getType()) {
-                            case BUSH:
-                                l.getBlock().setType(Material.OAK_LEAVES, false);
-                                break;
-                            case ORE_PLANT:
-                            case DOUBLE_PLANT:
-                                Block blockAbove = l.getBlock().getRelative(BlockFace.UP);
-                                item = BlockStorage.check(blockAbove);
-                                if (item != null) return;
+            Berry berry = plugin.getBerryByBush(item.getId());
+            if (berry != null) {
+                l.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
+                if (cfg.getDouble("watering-can.chance") >= random) {
+                    switch (berry.getType()) {
+                        case BUSH:
+                            l.getBlock().setType(Material.OAK_LEAVES, false);
+                            break;
+                        case ORE_PLANT:
+                        case DOUBLE_PLANT:
+                            Block blockAbove = l.getBlock().getRelative(BlockFace.UP);
+                            item = BlockStorage.check(blockAbove);
+                            if (item != null) return;
 
-                                if (!Tag.SAPLINGS.isTagged(blockAbove.getType()) && !Tag.LEAVES.isTagged(blockAbove.getType())) {
-                                    switch (blockAbove.getType()) {
-                                        case AIR:
-                                        case CAVE_AIR:
-                                        case SNOW:
-                                            break;
-                                        default:
-                                            return;
-                                    }
+                            if (!Tag.SAPLINGS.isTagged(blockAbove.getType()) && !Tag.LEAVES.isTagged(blockAbove.getType())) {
+                                switch (blockAbove.getType()) {
+                                    case AIR:
+                                    case CAVE_AIR:
+                                    case SNOW:
+                                        break;
+                                    default:
+                                        return;
                                 }
+                            }
 
-                                BlockStorage.store(blockAbove, berry.getItem());
-                                l.getBlock().setType(Material.OAK_LEAVES, false);
-                                blockAbove.setType(Material.PLAYER_HEAD, false);
-                                Rotatable rotatable = (Rotatable) blockAbove.getBlockData();
-                                rotatable.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
-                                blockAbove.setBlockData(rotatable);
+                            BlockStorage.store(blockAbove, berry.getItem());
+                            l.getBlock().setType(Material.OAK_LEAVES, false);
+                            blockAbove.setType(Material.PLAYER_HEAD, false);
+                            Rotatable rotatable = (Rotatable) blockAbove.getBlockData();
+                            rotatable.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
+                            blockAbove.setBlockData(rotatable);
 
-                                PlayerHead.setSkin(blockAbove, PlayerSkin.fromHashCode(berry.getTexture()), false);
-                                break;
-                            default:
-                                l.getBlock().setType(Material.PLAYER_HEAD, false);
-                                Rotatable s = (Rotatable) l.getBlock().getBlockData();
-                                s.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
-                                l.getBlock().setBlockData(s);
+                            PlayerHead.setSkin(blockAbove, PlayerSkin.fromHashCode(berry.getTexture()), false);
+                            break;
+                        default:
+                            l.getBlock().setType(Material.PLAYER_HEAD, false);
+                            Rotatable s = (Rotatable) l.getBlock().getBlockData();
+                            s.setRotation(faces[ThreadLocalRandom.current().nextInt(faces.length)]);
+                            l.getBlock().setBlockData(s);
 
-                                PlayerHead.setSkin(l.getBlock(), PlayerSkin.fromHashCode(berry.getTexture()), false);
-                                break;
-                        }
-
-                        BlockStorage.deleteLocationInfoUnsafely(l, false);
-                        BlockStorage.store(l.getBlock(), berry.getItem());
-                        l.getWorld().playEffect(l, Effect.STEP_SOUND, Material.OAK_LEAVES);
-                        break;
+                            PlayerHead.setSkin(l.getBlock(), PlayerSkin.fromHashCode(berry.getTexture()), false);
+                            break;
                     }
+
+                    BlockStorage.deleteLocationInfoUnsafely(l, false);
+                    BlockStorage.store(l.getBlock(), berry.getItem());
+                    l.getWorld().playEffect(l, Effect.STEP_SOUND, Material.OAK_LEAVES);
                 }
             }
         }
