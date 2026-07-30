@@ -385,6 +385,11 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
             int timeleft = progress.get(b);
             if (timeleft > 0) {
                 MachineRecipe current = processing.get(b);
+                if (current == null) {
+                    // 与下方完成分支一致：状态不一致（并发破坏等）时清理退出，避免 NPE。
+                    progress.remove(b);
+                    return;
+                }
 
                 ItemStack item = progressBar().clone();
                 item.setDurability(MachineHelper.getDurability(item, timeleft, current.getTicks()));
@@ -429,7 +434,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
             }
 
         } else {
-            // idle：输入签名（引用 + 数量）未变时跳过全量配方匹配 —— 稳态机器的常态。
+            // idle：输入签名（按值 isSimilar + 数量）未变时跳过全量配方匹配 —— 稳态机器的常态。
             MachineRecipe r;
             int[] consume;
             IdleMatchCache cached = idleMatchCache.get(b);
