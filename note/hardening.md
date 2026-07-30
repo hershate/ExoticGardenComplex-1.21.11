@@ -54,14 +54,22 @@
 4. **`FoodListener` 0-tick 延迟扣除（连点刷饥饿窗口）**：原 `scheduleSyncDelayedTask(0L)` 扣除，当前 tick 物品仍在，快速连点可多次恢复饥饿。改为同步扣除。
 5. **BE 草掉落绕过 `grass-drops` 配置过滤**：BE 注册（`onPlantsRegister/onTreesRegister`）晚于 `registerItems` 的首次过滤，其加入的草掉落条目不受配置开关控制。提取 `applyGrassDropsFilter()` 并在 BE 注册后再次调用。
 
-## 七、待确认 / 已知（未改动，避免破坏现有行为）
+## 七、待确认 / 已知（未改动）
 
-- **`MagicalEssence` 8→1 自指配方**：疑似设计（防误合成/占位），改它可能破坏兼容。建议人工确认设计意图。
-- **`Crook` 对 1.19+ 新树叶（樱花/红树/杜鹃）不掉树苗**：功能缺失（不崩）。建议补显式 Material 映射表。
-- **bstats 匿名数据上报**：被动匿名统计、非 bug，保留。若需完全离线，可移除 `Metrics` 调用 + pom bstats 依赖 + shade relocation。
-- **`drunkPlayers` 用玩家名而非 UUID 作 key**：玩家改名会丢数据/残留。涉及 storage.yml 数据格式兼容，未改。
+- **`BEPlants` ROSE/REED texture 哈希截断（62/61 位）**：导致头显异常，但缺少正确的 64 位纹理哈希，无法修复，需原作者提供。
+- **版本号仍为 `UNOFFICIAL`**：本仓库为非官方分支的有意标识，发布前再定。
 - **`MaterialData`/`PotionData` deprecated 警告**：不影响功能。
 - **`Material.SHORT_GRASS` 版本**：经核实，1.21.1 paper-api 即含 `SHORT_GRASS`（项目编译通过即证），1.21.1~1.21.11 运行时均可用，无需版本兼容层。
+
+## 八、第二轮加固（按用户决策，2026-07-30）
+
+1. **醉酒数据改用正版验证 UUID**：`drunkPlayers` 以 `player.getUniqueId()` 为 key（online 服务器即 Mojang 正版 UUID），玩家改名不再丢数据/残留；旧"玩家名"格式数据在 join 时自动迁移到 UUID。
+2. **移除 bstats 匿名统计**：删除 `Metrics` 调用、pom bstats 依赖与 shade relocation；test.sh 改为校验"无 bstats"。本附属不做联网匿名上报。
+3. **MagicalEssence 8→1 破坏配方**：改为 1→1 占位，避免玩家误操作损失 7 个精华。
+4. **Crook 新树叶显式映射**：MANGROVE/CHERRY 等不再因名称规则漏掉，补 `LEAF_TO_SAPLING` 映射。
+5. **死代码清理**：`CustomFood.restoreHunger`（从未调用且语义不一致）、`ExoticGardenFruit` default 分支 BARREL 死判断。
+6. **onDisable 不再置空集合**：避免卸载期间残余事件回调 NPE。
+7. **新玩家不即时落盘**：`PlayerAlcohol` 构造器移除磁盘写，退出时统一保存，减少 join IO。
 
 ## 构建与验证
 
@@ -84,3 +92,6 @@ bash test/test.sh   # 9 维度 47 项，47/47 通过
 6. `fix(core)`: FoodListener 连点 + initDataFromYAML 路径 + sendDrunkMessage + saveSchematic
 7. `docs(note)`: 加固记录
 8. `fix(config)`: BE 草掉落条目应用 grass-drops 过滤
+9. `feat(data)`: 醉酒数据改用正版 UUID 存储
+10. `chore(privacy)`: 移除 bstats 匿名统计
+11. `fix(items)`: 配方正确性 / 新树苗映射 / 死代码清理
