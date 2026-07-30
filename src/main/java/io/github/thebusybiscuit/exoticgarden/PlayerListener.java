@@ -26,13 +26,13 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         ExoticGarden.instance.saveDatas(event.getPlayer());
-        ExoticGarden.drunkPlayers.remove(event.getPlayer().getName());
+        ExoticGarden.drunkPlayers.remove(event.getPlayer().getUniqueId());
     }
 
 
     @EventHandler
     public void move(PlayerMoveEvent event) {
-        PlayerAlcohol playerAlcohol = ExoticGarden.drunkPlayers.get(event.getPlayer().getName());
+        PlayerAlcohol playerAlcohol = ExoticGarden.drunkPlayers.get(event.getPlayer().getUniqueId());
         if (playerAlcohol == null) {
             return;
         }

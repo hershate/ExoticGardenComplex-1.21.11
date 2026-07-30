@@ -13,13 +13,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -77,7 +77,7 @@ import me.mrCookieSlime.Slimefun.api.BlockStorage;
 
 public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
-    public static final ConcurrentHashMap<String, PlayerAlcohol> drunkPlayers = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<UUID, PlayerAlcohol> drunkPlayers = new ConcurrentHashMap<>();
     private static final String ALCOHOL_PATH = "Players.%p.Alcohol";
     private static final String DRUNK_PATH = "Players.%p.Drunk";
     private static final List<String> drunkMsg = new ArrayList<>();
@@ -222,8 +222,7 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         instance = this;
         cfg = new Config(this);
 
-        // Setting up bStats
-        new Metrics(this, 4575);
+        // 匿名统计(bstats)已按需移除：本附属不做联网匿名数据上报。
 
         initTransNames();
 
@@ -1284,9 +1283,8 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         SlimefunItemUtil.unregisterAllItems();
         SlimefunItemUtil.unregisterItemGroups();
         saveDatas();
-        berries = null;
-        trees = null;
-        items = null;
+        // 不再手动置空 berries/trees/items：插件卸载期间若有残余事件回调，置空会导致
+        // getBerries()/getTrees() 等返回 null 进而 NPE；交给 GC 回收即可。
         instance = null;
     }
 
@@ -1424,52 +1422,78 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         this.yamlStorge = YamlConfiguration.loadConfiguration(storge);
         ConfigurationSection section = this.yamlStorge.getConfigurationSection("Players");
         if (section == null) {
-            // 保存路径必须用插件数据目录的绝对路径；原 "storge.yml" 是相对路径，会写到
-            // 服务器根目录，与其它地方 (getDataFolder()/storge.yml) 不一致，造成数据分裂。
             try {
                 this.yamlStorge.save(new File(getDataFolder(), "storge.yml"));
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        } else {
-            for (String s : this.yamlStorge.getConfigurationSection("Players").getKeys(false)) {
-                drunkPlayers.put(s, new PlayerAlcohol(s, this.yamlStorge
-                        .getInt("Players.%p.Alcohol".replace("%p", s)), this.yamlStorge.getBoolean("Players.%p.Drunk".replace("%p", s))));
+            return;
+        }
+        for (String key : section.getKeys(false)) {
+            String base = "Players." + key;
+            int alcohol = this.yamlStorge.getInt(base + ".Alcohol");
+            boolean drunk = this.yamlStorge.getBoolean(base + ".Drunk");
+            try {
+                // 新格式：key 为玩家 UUID（正版验证 UUID，改名不影响）
+                UUID uuid = UUID.fromString(key);
+                drunkPlayers.put(uuid, new PlayerAlcohol(uuid, alcohol, drunk));
+            } catch (IllegalArgumentException ex) {
+                // 旧格式（玩家名）：暂不加载，待该玩家 join 时迁移到 UUID。
             }
         }
     }
 
     public void initPlayerData(Player player) {
-        String name = player.getName();
-        ConfigurationSection section = this.yamlStorge.getConfigurationSection("Players");
-        if (section != null && section.contains(name)) {
-            drunkPlayers.put(name, new PlayerAlcohol(name, this.yamlStorge
-                    .getInt("Players.%p.Alcohol".replace("%p", name)), this.yamlStorge.getBoolean("Players.%p.Drunk".replace("%p", name))));
-        } else {
-            drunkPlayers.put(name, new PlayerAlcohol(name, 0));
-            saveDatas(player);
+        UUID uuid = player.getUniqueId();
+        if (drunkPlayers.containsKey(uuid)) {
+            return;
         }
+        ConfigurationSection section = this.yamlStorge.getConfigurationSection("Players");
+        if (section != null && section.contains(uuid.toString())) {
+            String base = "Players." + uuid.toString();
+            drunkPlayers.put(uuid, new PlayerAlcohol(uuid, this.yamlStorge.getInt(base + ".Alcohol"), this.yamlStorge.getBoolean(base + ".Drunk")));
+            return;
+        }
+        // 迁移旧“玩家名”格式数据到 UUID
+        String name = player.getName();
+        if (section != null && section.contains(name)) {
+            String base = "Players." + name;
+            int alcohol = this.yamlStorge.getInt(base + ".Alcohol");
+            boolean drunk = this.yamlStorge.getBoolean(base + ".Drunk");
+            drunkPlayers.put(uuid, new PlayerAlcohol(uuid, alcohol, drunk));
+            this.yamlStorge.set("Players." + uuid.toString() + ".Alcohol", alcohol);
+            this.yamlStorge.set("Players." + uuid.toString() + ".Drunk", drunk);
+            this.yamlStorge.set("Players." + name, null);
+            return;
+        }
+        // 新玩家：仅写入内存，quit 时统一保存（避免 join 即磁盘 IO）
+        drunkPlayers.put(uuid, new PlayerAlcohol(uuid, 0));
     }
 
     private void saveDatas() {
         try {
-            for (Map.Entry<String, PlayerAlcohol> o : drunkPlayers.entrySet()) {
-                String player = "Players." + o.getKey();
-                this.yamlStorge.set(player + ".Alcohol", o.getValue().getAlcohol());
-                this.yamlStorge.set(player + ".Drunk", o.getValue().isDrunk());
+            for (Map.Entry<UUID, PlayerAlcohol> o : drunkPlayers.entrySet()) {
+                String base = "Players." + o.getKey().toString();
+                this.yamlStorge.set(base + ".Alcohol", o.getValue().getAlcohol());
+                this.yamlStorge.set(base + ".Drunk", o.getValue().isDrunk());
             }
-            this.yamlStorge.save(new File(getDataFolder() + File.separator + "storge.yml"));
+            this.yamlStorge.save(new File(getDataFolder(), "storge.yml"));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public void saveDatas(Player player) {
+        UUID uuid = player.getUniqueId();
+        PlayerAlcohol pa = drunkPlayers.get(uuid);
+        if (pa == null) {
+            return;
+        }
         try {
-            String playerName = "Players." + player.getName();
-            this.yamlStorge.set(playerName + ".Alcohol", drunkPlayers.get(player.getName()).getAlcohol());
-            this.yamlStorge.set(playerName + ".Drunk", drunkPlayers.get(player.getName()).isDrunk());
-            this.yamlStorge.save(new File(getDataFolder() + File.separator + "storge.yml"));
+            String base = "Players." + uuid.toString();
+            this.yamlStorge.set(base + ".Alcohol", pa.getAlcohol());
+            this.yamlStorge.set(base + ".Drunk", pa.isDrunk());
+            this.yamlStorge.save(new File(getDataFolder(), "storge.yml"));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -1504,23 +1528,24 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
     }
 
     private void checkDrunkers() {
-        for (Map.Entry<String, PlayerAlcohol> o : drunkPlayers.entrySet()) {
+        for (Map.Entry<UUID, PlayerAlcohol> o : drunkPlayers.entrySet()) {
             PlayerAlcohol pa = o.getValue();
-            Player player = Bukkit.getPlayer(pa.getPlayer());
+            Player player = Bukkit.getPlayer(pa.getPlayerUuid());
             if (player != null) {
                 if (pa.getAlcohol() > 0) {
-                    drunkPlayers.get(pa.getPlayer()).addAlcohol(-1);
+                    pa.addAlcohol(-1);
                 }
                 if (pa.isDrunk) {
                     if (pa.getAlcohol() <= 0) {
-                        drunkPlayers.get(pa.getPlayer()).setDrunk(false);
+                        pa.setDrunk(false);
                         continue;
                     }
                     player.addPotionEffect(new PotionEffect(VersionedPotionEffectType.CONFUSION, 120, 1, false));
                     continue;
                 }
-                if (pa.getAlcohol() >= 100)
-                    drunkPlayers.get(pa.getPlayer()).setDrunk(true);
+                if (pa.getAlcohol() >= 100) {
+                    pa.setDrunk(true);
+                }
             }
         }
     }

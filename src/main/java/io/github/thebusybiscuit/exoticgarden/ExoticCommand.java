@@ -75,7 +75,7 @@ public class ExoticCommand implements CommandExecutor {
             sender.sendMessage("§8[§b异域花园§8] §c指定的玩家不在线！");
             return null;
         }
-        PlayerAlcohol pa = ExoticGarden.drunkPlayers.get(name);
+        PlayerAlcohol pa = ExoticGarden.drunkPlayers.get(target.getUniqueId());
         if (pa == null) {
             sender.sendMessage("§8[§b异域花园§8] §c未找到该玩家的醉酒数据！");
             return null;

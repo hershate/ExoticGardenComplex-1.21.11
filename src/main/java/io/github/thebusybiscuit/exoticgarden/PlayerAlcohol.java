@@ -1,35 +1,27 @@
 package io.github.thebusybiscuit.exoticgarden;
 
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
+import java.util.UUID;
 
-import java.io.File;
-import java.io.IOException;
-
+/**
+ * 玩家醉酒状态。
+ *
+ * <p>以 Minecraft 正版验证 UUID（{@code player.getUniqueId()}，online 服务器下即 Mojang
+ * 正版 UUID）作为玩家标识，避免原实现用玩家名导致“玩家改名即丢失/残留醉酒数据”的问题。
+ * 数据在玩家退出时统一落盘（见 {@link ExoticGarden#saveDatas}），构造器不再即时写盘。</p>
+ */
 public class PlayerAlcohol {
-    final String player;
+    final UUID playerUuid;
     int alcohol;
     boolean isDrunk;
 
-    public PlayerAlcohol(String player, int alcohol) {
-        this.player = player;
+    public PlayerAlcohol(UUID playerUuid, int alcohol) {
+        this.playerUuid = playerUuid;
         this.alcohol = alcohol;
         this.isDrunk = false;
-        try {
-            YamlConfiguration storge = ExoticGarden.instance.getYamlStorge();
-            // 切勿使用 createSection("Players") —— 它会清空整个 Players 段，
-            // 导致其它玩家的醉酒数据被全部抹除（新玩家加入即丢数据）。
-            // 直接 set 到玩家子路径即可安全地新增/更新单条记录。
-            storge.set("Players." + player + ".Alcohol", 0);
-            storge.set("Players." + player + ".Drunk", Boolean.FALSE);
-            storge.save(new File(ExoticGarden.instance.getDataFolder(), "storge.yml"));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
-    public PlayerAlcohol(String player, int alcohol, boolean isDrunk) {
-        this.player = player;
+    public PlayerAlcohol(UUID playerUuid, int alcohol, boolean isDrunk) {
+        this.playerUuid = playerUuid;
         this.alcohol = alcohol;
         this.isDrunk = isDrunk;
     }
@@ -63,8 +55,8 @@ public class PlayerAlcohol {
         this.isDrunk = drunk;
     }
 
-    public String getPlayer() {
-        return this.player;
+    public UUID getPlayerUuid() {
+        return this.playerUuid;
     }
 
     public boolean check() {
@@ -77,5 +69,3 @@ public class PlayerAlcohol {
         return false;
     }
 }
-
-

@@ -50,16 +50,17 @@ public class CustomWine extends EGPlant implements NotPlaceable {
                 float newExhaust = Math.max(0, p.getExhaustion() - reduceExhaust);
                 p.setExhaustion(newExhaust);
         }
-        if (!ExoticGarden.drunkPlayers.containsKey(p.getName())) {
-            ExoticGarden.drunkPlayers.put(p.getName(), new PlayerAlcohol(p.getName(), 0));
+        java.util.UUID uuid = p.getUniqueId();
+        if (!ExoticGarden.drunkPlayers.containsKey(uuid)) {
+            ExoticGarden.drunkPlayers.put(uuid, new PlayerAlcohol(uuid, 0));
         }
-        ExoticGarden.drunkPlayers.get(p.getName()).addAlcohol(this.alcohol);
+        ExoticGarden.drunkPlayers.get(uuid).addAlcohol(this.alcohol);
         if (this.effects != null) {
             for (PotionEffect potion : this.effects) {
                 p.addPotionEffect(potion);
             }
         }
-        int alcohol = ExoticGarden.drunkPlayers.get(p.getName()).getAlcohol();
+        int alcohol = ExoticGarden.drunkPlayers.get(uuid).getAlcohol();
         if (alcohol < 100 && alcohol > 50) {
             p.sendMessage("§8[§a异域花园§8] §e你已经半醉了，请适度饮酒！");
         } else if (alcohol >= 100) {
