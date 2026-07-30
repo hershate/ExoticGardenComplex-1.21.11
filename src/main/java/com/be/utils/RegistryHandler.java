@@ -35,7 +35,7 @@ import io.github.thebusybiscuit.slimefun4.implementation.items.food.Juice;
 
 public class RegistryHandler {
 
-    private static final File schematicsFolder = new File(ExoticGarden.getInstance().getDataFolder(), "schematics");
+    private static volatile File schematicsFolder;
 
     public static void initPlant(String rawName, String name, ChatColor color, PlantType type, boolean pie, String texture) {
         String upperCase = rawName.toUpperCase(Locale.ROOT);
@@ -74,59 +74,48 @@ public class RegistryHandler {
     }
 
     public static File getSchematicsFolder() {
+        // 懒加载：避免在类加载阶段依赖 ExoticGarden.instance（此时 instance 可能尚未赋值，
+        // 会触发 ExceptionInInitializerError，连带 BETree 等功能失效）。
+        if (schematicsFolder == null) {
+            synchronized (RegistryHandler.class) {
+                if (schematicsFolder == null) {
+                    schematicsFolder = new File(ExoticGarden.getInstance().getDataFolder(), "schematics");
+                }
+            }
+        }
         return schematicsFolder;
     }
 
     private static void saveSchematic(@Nonnull String id) {
-        try {
-            InputStream input = ExoticGarden.getInstance().getClass().getResourceAsStream("/schematics/" + id + ".schematic");
-
-            try {
-                FileOutputStream output = new FileOutputStream(new File(getSchematicsFolder(), id + ".schematic"));
-
-                try {
-                    byte[] buffer = new byte[1024];
-
-                    int len;
-                    while ((len = input.read(buffer)) > 0) {
-                        output.write(buffer, 0, len);
-                    }
-                } catch (Throwable var8) {
-                    try {
-                        output.close();
-                    } catch (Throwable var7) {
-                        var8.addSuppressed(var7);
-                    }
-
-                    throw var8;
-                }
-
-                output.close();
-            } catch (Throwable var9) {
-                if (input != null) {
-                    try {
-                        input.close();
-                    } catch (Throwable var6) {
-                        var9.addSuppressed(var6);
-                    }
-                }
-
-                throw var9;
+        File target = new File(getSchematicsFolder(), id + ".schematic");
+        // try-with-resources 自动关闭流；getResourceAsStream 在资源缺失时返回 null，
+        // 原实现对此直接 input.read 会 NPE（且不被 IOException 捕获），中断整条注册流程。
+        try (InputStream input = ExoticGarden.getInstance().getClass().getResourceAsStream("/schematics/" + id + ".schematic");
+             FileOutputStream output = new FileOutputStream(target)) {
+            if (input == null) {
+                ExoticGarden.getInstance().getLogger().severe("Missing schematic resource in jar: /schematics/" + id + ".schematic");
+                return;
             }
-
-            if (input != null) {
-                input.close();
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = input.read(buffer)) > 0) {
+                output.write(buffer, 0, len);
             }
-        } catch (IOException var10) {
-            ExoticGarden.getInstance().getLogger().log(Level.SEVERE, var10, () -> "Failed to load file: \"" + id + ".schematic\"");
+        } catch (IOException e) {
+            ExoticGarden.getInstance().getLogger().log(Level.SEVERE, "Failed to load file: \"" + id + ".schematic\"", e);
         }
-
     }
 
     @Nullable
     private static ItemStack getItem(@Nonnull String id) {
         SlimefunItem item = SlimefunItem.getById(id);
-        return item != null ? item.getItem() : null;
+        if (item == null) {
+            // 返回 null 会让配方对应槽位变空（被当作“无需该材料”），静默改变合成语义。
+            // 至少留下日志，便于发现 ID 拼写/注册顺序问题。
+            ExoticGarden.getInstance().getLogger().warning("RegistryHandler.getItem: Slimefun item not found for id \"" + id + "\"; recipe slot will be empty.");
+            return null;
+        }
+        return item.getItem();
     }
 
 }
