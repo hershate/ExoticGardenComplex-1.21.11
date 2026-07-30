@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.thebusybiscuit</groupId>
     <artifactId>ExoticGarden</artifactId>
-    <version>UNOFFICIAL</version>
+    <version>1.0.0</version>
 
     <properties>
         <maven.compiler.source>16</maven.compiler.source>
@@ -31,7 +31,7 @@
     </repositories>
 
     <build>
-        <finalName>${project.name} v${project.version}</finalName>
+        <finalName>ExoticGardenComplex-1.21.11-${project.version}</finalName>
         <defaultGoal>clean package</defaultGoal>
         <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
 
