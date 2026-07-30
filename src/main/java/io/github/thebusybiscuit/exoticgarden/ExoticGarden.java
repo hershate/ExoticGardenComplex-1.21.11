@@ -85,6 +85,13 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
     public static ExoticGarden instance;
     private final File schematicsFolder = new File(getDataFolder(), "schematics");
     private final Set<String> treeFruits = new HashSet<>();
+    // berry / tree 的 O(1) 查找索引（按 id / bush / sapling）。键用小写以兼容原
+    // equalsIgnoreCase 语义。注册全部完成后由 rebuildPlantIndex() 构建。
+    private final Map<String, Berry> berriesById = new HashMap<>();
+    private final Map<String, Berry> berriesByBush = new HashMap<>();
+    private final Map<String, Tree> treesBySapling = new HashMap<>();
+    // 草掉落物品数组缓存（onHarvest 高频调用，避免每次 values().toArray 分配）。
+    private ItemStack[] grassDropsCache;
     private final HashMap<String, String> traslateNames = new HashMap<>();
     public NestedItemGroup nestedItemGroup;
     public ItemGroup mainItemGroup;
@@ -150,47 +157,46 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
             return null;
         }
 
-        for (Berry berry : getBerries()) {
-            if (item.getId().equalsIgnoreCase(berry.getID())) {
-                switch (berry.getType()) {
-                    case ORE_PLANT, DOUBLE_PLANT -> {
-                        Block plant;
-                        Block head;
-                        if (Tag.LEAVES.isTagged(block.getType())) {
-                            // Player broke the leaf block
-                            plant = block;
-                            head = block.getRelative(BlockFace.UP);
-                        } else {
-                            // Player broke the head block
-                            plant = block.getRelative(BlockFace.DOWN);
-                            head = block;
-                        }
-
-                        block.getWorld().playEffect(block.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
-                        head.setType(Material.AIR, false);
-                        plant.setType(Material.OAK_SAPLING, false);
-                        BlockStorage.clearBlockInfo(head.getLocation());
-                        BlockStorage.clearBlockInfo(plant.getLocation());
-                        ItemStack bushItem = getItem(berry.toBush());
-                        if (bushItem != null) {
-                            BlockStorage.store(plant, bushItem);
-                        }
-                        return berry.getItem().clone();
-                    }
-                    default -> {
-                        block.setType(Material.OAK_SAPLING, false);
-                        BlockStorage.clearBlockInfo(block.getLocation());
-                        ItemStack bushItem = getItem(berry.toBush());
-                        if (bushItem != null) {
-                            BlockStorage.store(block, bushItem);
-                        }
-                        return berry.getItem().clone();
-                    }
+        // O(1) 索引查找取代遍历 getBerries() 的 equalsIgnoreCase。
+        Berry berry = instance.getBerry(item.getId());
+        if (berry == null) {
+            return null;
+        }
+        switch (berry.getType()) {
+            case ORE_PLANT, DOUBLE_PLANT -> {
+                Block plant;
+                Block head;
+                if (Tag.LEAVES.isTagged(block.getType())) {
+                    // Player broke the leaf block
+                    plant = block;
+                    head = block.getRelative(BlockFace.UP);
+                } else {
+                    // Player broke the head block
+                    plant = block.getRelative(BlockFace.DOWN);
+                    head = block;
                 }
+
+                block.getWorld().playEffect(block.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
+                head.setType(Material.AIR, false);
+                plant.setType(Material.OAK_SAPLING, false);
+                BlockStorage.clearBlockInfo(head.getLocation());
+                BlockStorage.clearBlockInfo(plant.getLocation());
+                ItemStack bushItem = getItem(berry.toBush());
+                if (bushItem != null) {
+                    BlockStorage.store(plant, bushItem);
+                }
+                return berry.getItem().clone();
+            }
+            default -> {
+                block.setType(Material.OAK_SAPLING, false);
+                BlockStorage.clearBlockInfo(block.getLocation());
+                ItemStack bushItem = getItem(berry.toBush());
+                if (bushItem != null) {
+                    BlockStorage.store(block, bushItem);
+                }
+                return berry.getItem().clone();
             }
         }
-
-        return null;
     }
 
     public static ExoticGarden getInstance() {
@@ -207,6 +213,52 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
     public static List<Berry> getBerries() {
         return instance.berries;
+    }
+
+    /** 按 Slimefun id 查 berry（O(1)，替代遍历）。 */
+    public Berry getBerry(@Nullable String sfId) {
+        if (sfId == null) {
+            return null;
+        }
+        return berriesById.get(sfId.toLowerCase(Locale.ROOT));
+    }
+
+    /** 按“灌木丛/植物” id 查 berry（O(1)）。 */
+    public Berry getBerryByBush(@Nullable String bushId) {
+        if (bushId == null) {
+            return null;
+        }
+        return berriesByBush.get(bushId.toLowerCase(Locale.ROOT));
+    }
+
+    /** 按“树苗” id 查 tree（O(1)）。 */
+    public Tree getTreeBySapling(@Nullable String saplingId) {
+        if (saplingId == null) {
+            return null;
+        }
+        return treesBySapling.get(saplingId.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * 重建 berry / tree 查找索引。需在所有植物/树注册完成后（含 BE 注册）调用一次。
+     * 键用小写以兼容原 {@code equalsIgnoreCase} 语义。
+     */
+    public void rebuildPlantIndex() {
+        berriesById.clear();
+        berriesByBush.clear();
+        treesBySapling.clear();
+        for (Berry berry : berries) {
+            berriesById.put(berry.getID().toLowerCase(Locale.ROOT), berry);
+            berriesByBush.put(berry.toBush().toLowerCase(Locale.ROOT), berry);
+        }
+        for (Tree tree : trees) {
+            treesBySapling.put(tree.getSapling().toLowerCase(Locale.ROOT), tree);
+        }
+    }
+
+    /** 草掉落物品数组（缓存，onHarvest 高频读取）。注册完成后构建。 */
+    public ItemStack[] getGrassDropsArray() {
+        return grassDropsCache;
     }
 
     public static Map<String, ItemStack> getGrassDrops() {
@@ -277,6 +329,10 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         for (Tree tree : trees) {
             treeFruits.add(tree.getFruitID());
         }
+        // 构建 berry/tree 的 O(1) 查找索引（含 BE 注册项），供采集/监听器使用。
+        rebuildPlantIndex();
+        // 缓存草掉落物品数组（onHarvest 高频调用）。
+        grassDropsCache = items.values().toArray(new ItemStack[0]);
         cfg.save();
         //HeadDropFix.onHeadDropFix();
         BECommands.onCommandsRegister();
