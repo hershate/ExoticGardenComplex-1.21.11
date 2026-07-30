@@ -488,7 +488,14 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
         return cached;
     }
 
-    /** 输入签名比对：引用相等 + 数量相等（任何变化都判为“已变”，不会误命中）。 */
+    /**
+     * 输入签名比对：按值（isSimilar + 数量）判断输入是否变化。
+     *
+     * <p>不能用引用相等：{@code BlockMenu.getItemInSlot} 经 Bukkit {@code Inventory.getItem}
+     * 返回，Craftbukkit 通常每次返回新的 {@code CraftItemStack} 包装对象（引用不等，即使
+     * 底层 NMS 物品相同）。按值比较既兼容该行为，也兼容返回稳定引用的实现，且仅需
+     * 输入槽数量次 isSimilar（1~3 次），远少于全量配方扫描。</p>
+     */
     private boolean inputUnchanged(IdleMatchCache cached, BlockMenu menu, int[] slots) {
         ItemStack[] snap = cached.snapshot;
         if (snap.length != slots.length) {
@@ -497,12 +504,21 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
         int[] snapAmt = cached.amounts;
         for (int p = 0; p < slots.length; p++) {
             ItemStack cur = menu.getItemInSlot(slots[p]);
-            if (cur != snap[p]) {
-                return false;
-            }
-            int amt = cur == null ? 0 : cur.getAmount();
-            if (snapAmt[p] != amt) {
-                return false;
+            ItemStack was = snap[p];
+            if (cur == null) {
+                if (was != null) {
+                    return false; // 有物 → 空
+                }
+            } else {
+                if (was == null) {
+                    return false; // 空 → 有物
+                }
+                if (cur.getAmount() != snapAmt[p]) {
+                    return false; // 数量变化（含原地 setAmount）
+                }
+                if (!cur.isSimilar(was)) {
+                    return false; // 物品变化（类型 / SF id / meta 不同）
+                }
             }
         }
         return true;

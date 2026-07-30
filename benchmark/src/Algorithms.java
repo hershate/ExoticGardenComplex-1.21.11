@@ -256,17 +256,29 @@ public final class Algorithms {
         return foundIdx < 0 ? null : consume;
     }
 
+    // 按值比较（isSimilar + 数量），与优化后生产代码一致：生产中 BlockMenu.getItemInSlot
+    // 经 Bukkit 返回，可能每次是新包装对象，故不能靠引用相等。
     private static boolean sameInput(SimItem[] snap, int[] snapAmt, SimItem[] cur) {
         if (snap == null || snap.length != cur.length) {
             return false;
         }
         for (int i = 0; i < cur.length; i++) {
-            if (snap[i] != cur[i]) {
-                return false; // 引用不等 → 视为变化（不会误命中）
-            }
-            int amt = cur[i] == null ? 0 : cur[i].getAmount();
-            if (snapAmt[i] != amt) {
-                return false; // 数量变化（原地 setAmount）→ 视为变化
+            SimItem c = cur[i];
+            SimItem w = snap[i];
+            if (c == null) {
+                if (w != null) {
+                    return false;
+                }
+            } else {
+                if (w == null) {
+                    return false;
+                }
+                if (snapAmt[i] != c.getAmount()) {
+                    return false;
+                }
+                if (!c.isSimilar(w)) {
+                    return false;
+                }
             }
         }
         return true;

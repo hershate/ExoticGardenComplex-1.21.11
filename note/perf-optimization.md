@@ -25,23 +25,27 @@
 6. **ThreadLocalRandom**：`willOutput`/`selectSubItem` 原 `new Random()`/`Math.random()`。
 7. **progressBar/subRecipes 懒缓存**：SeedAnalyzer 原每次完成重建 35 元素副产物列表。
 
-基准（3 输入/35 配方）：不匹配稳态 209.6→36.9 ns（**5.68×**）、命中稳态 416.9→39.4 ns（**10.58×**）、
-空输入 291.9→11.5 ns（**25.49×**）。
+基准（3 输入/35 配方）：不匹配稳态 195.4→25.7 ns（**7.59×**）、命中稳态 392.1→42.8 ns（**9.16×**）、
+空输入 268.6→12.8 ns（**20.98×**）。
 
-> 本质：idle 机器不再每 tick 重复匹配。冷启动单次匹配新旧工作量相同（0.80× 是测量噪声 +
+> 本质：idle 机器不再每 tick 重复匹配。冷启动单次匹配新旧工作量相同（0.75× 是测量噪声 +
 > 缓存写入开销），收益全在稳态跳过。
+>
+> **签名按值比较**：`BlockMenu.getItemInSlot` 经 Bukkit 返回，Craftbukkit 每次可能返回新的
+> `CraftItemStack` 包装对象（引用不等），故签名用 `isSimilar`+数量**按值**判定（而非引用相等），
+> 否则缓存永不命中。仅需输入槽数量次 isSimilar（1~3 次）。
 
 ## 二、MachineIO.fits
 
 int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone 一次；输出槽满、机器持续
-重试时是分配热点）。基准 76.6→26.5 ns（**2.89×**）。
+重试时是分配热点）。基准 76.8→28.0 ns（**2.74×**）。
 
 ## 三、采集 / 监听器
 
 1. **berry/tree O(1) 索引**：`ExoticGarden` 新增 `berriesById`/`berriesByBush`/`treesBySapling`
    （键小写，兼容原 `equalsIgnoreCase`），`rebuildPlantIndex()` 在 BE 注册后构建。
    - `harvestPlant`、`growStructure0`/`onDecay`/`onBlockBurn`/`waterStructure` 的线性循环全改索引。
-   - 基准 berry 查表（~60 项）154.0→2.5 ns（**61×**）。
+   - 基准 berry 查表（~60 项）151.9→2.5 ns（**60×**）。
 2. **dropFruitFromTree 头过滤**：树果仅以 PLAYER_HEAD 放置，加 `fruit.getType()==PLAYER_HEAD`，
    跳过 ~26/27 个非头方块的 `BlockStorage.check`（砍树高频路径）。
 3. **配置缓存**：`world-blacklist`/`chances.BUSH`/`chances.TREE`/`auto-generate-plants` 在
