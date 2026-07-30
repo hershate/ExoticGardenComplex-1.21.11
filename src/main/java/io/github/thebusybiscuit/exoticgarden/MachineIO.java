@@ -19,16 +19,25 @@ final class MachineIO {
     /**
      * 检查 {@code items} 能否全部放入指定 {@code slots}（考虑同类型堆叠），不修改菜单。
      *
+     * <p>实现用 int 金额数组模拟堆叠，<b>不再对每个槽位 {@code clone}</b>（旧实现每槽一次克隆，
+     * 在输出槽满、机器持续重试的稳态下是显著分配热点）。仅在内存中维护每槽“当前引用 + 当前
+     * 金额”，逻辑与旧实现等价（已由离线基准的正确性断言验证）。</p>
+     *
      * @param menu  目标菜单
      * @param slots 允许放入的槽位
      * @param items 待放入物品（null/空气将被忽略）
      * @return 全部可放入返回 true
      */
     static boolean fits(BlockMenu menu, int[] slots, ItemStack[] items) {
-        ItemStack[] snapshot = new ItemStack[slots.length];
-        for (int i = 0; i < slots.length; i++) {
+        int n = slots.length;
+        ItemStack[] base = new ItemStack[n];
+        int[] amt = new int[n];
+        for (int i = 0; i < n; i++) {
             ItemStack current = menu.getItemInSlot(slots[i]);
-            snapshot[i] = (current == null || current.getType().isAir()) ? null : current.clone();
+            if (current != null && !current.getType().isAir()) {
+                base[i] = current;
+                amt[i] = current.getAmount();
+            }
         }
 
         for (ItemStack add : items) {
@@ -38,22 +47,20 @@ final class MachineIO {
             int remaining = add.getAmount();
             int max = add.getMaxStackSize() > 0 ? add.getMaxStackSize() : 64;
 
-            // 先尝试堆叠到同类型槽
-            for (int i = 0; i < snapshot.length && remaining > 0; i++) {
-                ItemStack s = snapshot[i];
-                if (s != null && s.isSimilar(add) && s.getAmount() < max) {
-                    int can = Math.min(remaining, max - s.getAmount());
-                    s.setAmount(s.getAmount() + can);
+            // 先堆叠到同类型槽
+            for (int i = 0; i < n && remaining > 0; i++) {
+                if (base[i] != null && amt[i] < max && base[i].isSimilar(add)) {
+                    int can = Math.min(remaining, max - amt[i]);
+                    amt[i] += can;
                     remaining -= can;
                 }
             }
-            // 再放入空槽
-            for (int i = 0; i < snapshot.length && remaining > 0; i++) {
-                if (snapshot[i] == null) {
+            // 再放入空槽（base[i]==null）
+            for (int i = 0; i < n && remaining > 0; i++) {
+                if (base[i] == null) {
                     int can = Math.min(remaining, max);
-                    ItemStack neu = add.clone();
-                    neu.setAmount(can);
-                    snapshot[i] = neu;
+                    base[i] = add;
+                    amt[i] = can;
                     remaining -= can;
                 }
             }
