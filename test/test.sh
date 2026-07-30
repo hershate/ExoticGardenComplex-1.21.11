@@ -32,7 +32,7 @@ SETTINGS="$HOME/maven-settings.xml"
 SARGS=(); [ -f "$SETTINGS" ] && SARGS=(-s "$SETTINGS")
 
 REFJAR="$HOME/.m2/repository/com/github/slimefun/Slimefun/4.9.5/Slimefun-4.9.5.jar"
-ADDONJAR="target/ExoticGardenComplex-1.21.11-1.0.0.jar"
+ADDONJAR="target/ExoticGardenComplex-1.21.11-1.1.0.jar"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
 # ---------- 计数 ----------
@@ -201,6 +201,18 @@ if [ "$MISSING" -eq 0 ]; then
     ok "REF 兼容: $TOTAL 个 Slimefun/mrCookieSlime import 全部存在于 REF jar"
 else
     bad "REF 兼容: $MISSING/$TOTAL import 在 REF jar 中缺失(运行时将 NoClassDefFound)"
+fi
+
+# =====================================================================
+sect "10. 基准测试正确性（benchmark/）"
+# =====================================================================
+# 离线基准（benchmark/）的新旧算法等价性断言（match / fits）。Benchmark.main 在任一
+# 等价性断言失败时 System.exit(1)，故退出码 0 即代表全部 PASS（语言无关，避免中文 grep）。
+if bash benchmark/run.sh > "$TMP/bench.log" 2>&1; then
+    ok "基准等价性断言全 PASS（match/fits，优化前后行为一致）"
+else
+    bad "基准运行失败或等价性断言未通过"
+    tail -n 20 "$TMP/bench.log" | sed 's/^/      /'
 fi
 
 # =====================================================================
