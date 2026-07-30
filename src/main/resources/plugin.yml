@@ -15,12 +15,10 @@ main: io.github.thebusybiscuit.exoticgarden.ExoticGarden
 
 depend:
   - Slimefun
-  - GuizhanLibPlugin
 
 softdepend:
   - Sanity
   - Residence
-  - FluffyMachines
 
 commands:
   exotic:

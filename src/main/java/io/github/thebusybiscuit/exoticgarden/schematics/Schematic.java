@@ -1,6 +1,5 @@
 package io.github.thebusybiscuit.exoticgarden.schematics;
 
-import com.xzavier0722.mc.plugin.slimefun4.storage.controller.BlockDataController;
 import io.github.thebusybiscuit.exoticgarden.ExoticGarden;
 import io.github.thebusybiscuit.exoticgarden.Tree;
 import io.github.thebusybiscuit.exoticgarden.schematics.org.jnbt.ByteArrayTag;
@@ -13,6 +12,7 @@ import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.skins.PlayerHead;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.skins.PlayerSkin;
 import io.github.thebusybiscuit.slimefun4.utils.tags.SlimefunTag;
+import me.mrCookieSlime.Slimefun.api.BlockStorage;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -116,9 +116,6 @@ public class Schematic {
                                 block.setType(material, doPhysics);
                             }
 
-                            BlockDataController blockDataController =
-                                    Slimefun.getDatabaseManager().getBlockDataController();
-
                             if (org.bukkit.Tag.LEAVES.isTagged(material) && ThreadLocalRandom.current().nextInt(100) < 25) {
                                 Optional<SlimefunItem> slimefunItemOptional =
                                         Optional.ofNullable(SlimefunItem.getByItem(tree.getItem()));
@@ -127,7 +124,7 @@ public class Schematic {
                                  * Fix: There already a block in this location.
                                  */
                                 try {
-                                    slimefunItemOptional.ifPresent(slimefunItem -> blockDataController.createBlock(block.getLocation(), slimefunItem.getId()));
+                                    slimefunItemOptional.ifPresent(slimefunItem -> BlockStorage.store(block, slimefunItem.getId()));
                                 } catch (IllegalStateException illegalStateException) {
                                     // ignore
                                 }
@@ -142,7 +139,7 @@ public class Schematic {
                                 Optional<SlimefunItem> slimefunItemOptional =
                                         Optional.ofNullable(SlimefunItem.getByItem(tree.getFruit()));
 
-                                slimefunItemOptional.ifPresent(slimefunItem -> blockDataController.createBlock(block.getLocation(), slimefunItem.getId()));
+                                slimefunItemOptional.ifPresent(slimefunItem -> BlockStorage.store(block, slimefunItem.getId()));
                             }
                         }
                     }

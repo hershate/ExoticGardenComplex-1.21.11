@@ -41,8 +41,6 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import com.xzavier0722.mc.plugin.slimefun4.storage.util.StorageCacheUtils;
-
 import io.github.thebusybiscuit.exoticgarden.Berry;
 import io.github.thebusybiscuit.exoticgarden.ExoticGarden;
 import io.github.thebusybiscuit.exoticgarden.ExoticItems;
@@ -58,7 +56,6 @@ import io.github.thebusybiscuit.slimefun4.libraries.dough.skins.PlayerHead;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.skins.PlayerSkin;
 import io.github.thebusybiscuit.slimefun4.libraries.paperlib.PaperLib;
 import io.github.thebusybiscuit.slimefun4.utils.tags.SlimefunTag;
-import io.ncbpfluffybear.fluffymachines.utils.FluffyItems;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
 
 public class PlantsListener implements Listener {
@@ -96,7 +93,7 @@ public class PlantsListener implements Listener {
 
         final Optional<String> id = Slimefun.getItemDataService().getItemData(itemMeta);
 
-        if (b != null && id.isPresent() && id.get().equals(FluffyItems.WATERING_CAN.getItemId()) && e.getHand() == EquipmentSlot.HAND) {
+        if (b != null && id.isPresent() && id.get().equals("WATERING_CAN") && e.getHand() == EquipmentSlot.HAND) {
             waterStructure(b.getLocation(), e, item);
         }
     }
@@ -215,7 +212,7 @@ public class PlantsListener implements Listener {
     }
 
     private boolean applyGoldKela(PlayerInteractEvent event, Block block, ItemStack hand) {
-        if (!(StorageCacheUtils.getSfItem(block.getLocation()) instanceof BonemealableItem bi)) {
+        if (!(BlockStorage.check(block.getLocation()) instanceof BonemealableItem bi)) {
             return false;
         }
 
@@ -246,13 +243,13 @@ public class PlantsListener implements Listener {
     }
 
     private boolean growStructure0(StructureGrowEvent e) {
-        SlimefunItem item = StorageCacheUtils.getSfItem(e.getLocation());
+        SlimefunItem item = BlockStorage.check(e.getLocation());
 
         if (item != null) {
             e.setCancelled(true);
             for (Tree tree : ExoticGarden.getTrees()) {
                 if (item.getId().equalsIgnoreCase(tree.getSapling())) {
-                    Slimefun.getDatabaseManager().getBlockDataController().removeBlock(e.getLocation());
+                    BlockStorage.clearBlockInfo(e.getLocation());
                     Schematic.pasteSchematic(e.getLocation(), tree, false);
                     return true;
                 }
@@ -264,7 +261,7 @@ public class PlantsListener implements Listener {
                         case BUSH -> e.getLocation().getBlock().setType(Material.OAK_LEAVES, false);
                         case ORE_PLANT, DOUBLE_PLANT -> {
                             Block blockAbove = e.getLocation().getBlock().getRelative(BlockFace.UP);
-                            item = StorageCacheUtils.getSfItem(blockAbove.getLocation());
+                            item = BlockStorage.check(blockAbove.getLocation());
                             if (item != null) return false;
                             if (!Tag.SAPLINGS.isTagged(blockAbove.getType()) && !Tag.LEAVES.isTagged(blockAbove.getType())) {
                                 switch (blockAbove.getType()) {
@@ -291,7 +288,7 @@ public class PlantsListener implements Listener {
                         }
                     }
 
-                    Slimefun.getDatabaseManager().getBlockDataController().removeBlock(e.getLocation());
+                    BlockStorage.clearBlockInfo(e.getLocation());
                     BlockStorage.store(e.getLocation().getBlock(), berry.getItem());
                     e.getWorld().playEffect(e.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
                     break;
@@ -376,7 +373,7 @@ public class PlantsListener implements Listener {
                 dropFruitFromTree(e.getBlock());
             }
 
-            if (e.getBlock().getType() == Material.GRASS) {
+            if (e.getBlock().getType() == Material.SHORT_GRASS) {
                 if (!ExoticGarden.getGrassDrops().isEmpty() && e.getPlayer().getGameMode() != GameMode.CREATIVE) {
                     Random random = ThreadLocalRandom.current();
 
@@ -415,7 +412,7 @@ public class PlantsListener implements Listener {
             return;
         }
 
-        var item = StorageCacheUtils.getSfItem(e.getBlock().getLocation());
+        var item = BlockStorage.check(e.getBlock().getLocation());
 
         if (item != null) {
             for (Berry berry : ExoticGarden.getBerries()) {
@@ -504,11 +501,11 @@ public class PlantsListener implements Listener {
     public void onBonemealPlant(BlockFertilizeEvent e) {
         Block b = e.getBlock();
         if (b.getType() == Material.OAK_SAPLING) {
-            SlimefunItem item = StorageCacheUtils.getSfItem(b.getLocation());
+            SlimefunItem item = BlockStorage.check(b.getLocation());
 
             if (item instanceof BonemealableItem && ((BonemealableItem) item).isBonemealDisabled()) {
                 e.setCancelled(true);
-                b.getWorld().spawnParticle(Particle.VILLAGER_ANGRY, b.getLocation().clone().add(0.5, 0, 0.5), 4);
+                b.getWorld().spawnParticle(Particle.ANGRY_VILLAGER, b.getLocation().clone().add(0.5, 0, 0.5), 4);
                 b.getWorld().playSound(b.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
             }
         }
@@ -539,11 +536,11 @@ public class PlantsListener implements Listener {
 
 
                     Location loc = fruit.getLocation();
-                    SlimefunItem check = StorageCacheUtils.getSfItem(loc);
+                    SlimefunItem check = BlockStorage.check(loc);
                     if (check == null) continue;
                     for (Tree tree : ExoticGarden.getTrees()) {
                         if (check.getId().equalsIgnoreCase(tree.getFruitID())) {
-                            Slimefun.getDatabaseManager().getBlockDataController().removeBlock(loc);
+                            BlockStorage.clearBlockInfo(loc);
                             ItemStack fruits = check.getItem();
                             fruit.getWorld().playEffect(loc, Effect.STEP_SOUND, Material.OAK_LEAVES);
                             fruit.getWorld().dropItemNaturally(loc, fruits);
@@ -563,7 +560,7 @@ public class PlantsListener implements Listener {
             final double random = ThreadLocalRandom.current().nextDouble();
             for (Tree tree : ExoticGarden.getTrees()) {
                 if (item.getId().equalsIgnoreCase(tree.getSapling())) {
-                    l.getWorld().spawnParticle(Particle.VILLAGER_HAPPY, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
+                    l.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
                     if (cfg.getDouble("watering-can.chance") >= random) {
                         BlockStorage.clearBlockInfo(l.getBlock());
                         Schematic.pasteSchematic(l, tree, false);
@@ -574,7 +571,7 @@ public class PlantsListener implements Listener {
 
             for (Berry berry : ExoticGarden.getBerries()) {
                 if (item.getId().equalsIgnoreCase(berry.toBush())) {
-                    l.getWorld().spawnParticle(Particle.VILLAGER_HAPPY, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
+                    l.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, l.add(0.5D, 0.5D, 0.5D), 15, 0.2F, 0.2F, 0.2F);
                     if (cfg.getDouble("watering-can.chance") >= random) {
                         switch (berry.getType()) {
                             case BUSH:

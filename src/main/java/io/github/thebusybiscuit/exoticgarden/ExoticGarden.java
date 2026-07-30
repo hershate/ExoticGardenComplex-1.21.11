@@ -45,7 +45,6 @@ import com.be.registry.BEPlants;
 import com.be.registry.BETrees;
 import com.be.utils.BEListener;
 import com.be.utils.RegistryHandler;
-import com.xzavier0722.mc.plugin.slimefun4.storage.util.StorageCacheUtils;
 
 import io.github.thebusybiscuit.exoticgarden.items.BonemealableItem;
 import io.github.thebusybiscuit.exoticgarden.items.Crook;
@@ -75,7 +74,6 @@ import io.github.thebusybiscuit.slimefun4.libraries.dough.skins.PlayerHead;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.skins.PlayerSkin;
 import io.github.thebusybiscuit.slimefun4.libraries.paperlib.PaperLib;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
-import net.guizhanss.guizhanlibplugin.updater.GuizhanUpdater;
 
 public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
@@ -138,7 +136,7 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
     @Nullable
     public static ItemStack harvestPlant(@Nonnull Block block) {
-        SlimefunItem item = StorageCacheUtils.getSfItem(block.getLocation());
+        SlimefunItem item = BlockStorage.check(block.getLocation());
 
         if (item == null) {
             return null;
@@ -146,7 +144,6 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         for (Berry berry : getBerries()) {
             if (item.getId().equalsIgnoreCase(berry.getID())) {
-                var controller = Slimefun.getDatabaseManager().getBlockDataController();
                 switch (berry.getType()) {
                     case ORE_PLANT, DOUBLE_PLANT -> {
                         Block plant;
@@ -164,14 +161,14 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
                         block.getWorld().playEffect(block.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
                         head.setType(Material.AIR, false);
                         plant.setType(Material.OAK_SAPLING, false);
-                        controller.removeBlock(head.getLocation());
-                        controller.removeBlock(plant.getLocation());
+                        BlockStorage.clearBlockInfo(head.getLocation());
+                        BlockStorage.clearBlockInfo(plant.getLocation());
                         BlockStorage.store(plant, getItem(berry.toBush()));
                         return berry.getItem().clone();
                     }
                     default -> {
                         block.setType(Material.OAK_SAPLING, false);
-                        controller.removeBlock(block.getLocation());
+                        BlockStorage.clearBlockInfo(block.getLocation());
                         BlockStorage.store(block, getItem(berry.toBush()));
                         return berry.getItem().clone();
                     }
@@ -210,13 +207,6 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
     public void onEnable() {
         PaperLib.suggestPaper(this);
 
-        if (!getServer().getPluginManager().isPluginEnabled("GuizhanLibPlugin")) {
-            getLogger().log(Level.SEVERE, "本插件需要 鬼斩前置库插件(GuizhanLibPlugin) 才能运行!");
-            getLogger().log(Level.SEVERE, "从此处下载: https://50L.cc/gzlib");
-            getServer().getPluginManager().disablePlugin(this);
-            return;
-        }
-
         if (!schematicsFolder.exists()) {
             schematicsFolder.mkdirs();
         }
@@ -226,11 +216,6 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         // Setting up bStats
         new Metrics(this, 4575);
-
-        // Auto Updater
-        if (cfg.getBoolean("options.auto-update") && getDescription().getVersion().startsWith("Build")) {
-            GuizhanUpdater.start(this, getFile(), "ybw0014", "ExoticGarden", "master");
-        }
 
         initTransNames();
 
@@ -288,13 +273,13 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
     }
 
     private void registerItems() {
-        nestedItemGroup = new NestedItemGroup(new NamespacedKey(this, "parent_category"), new CustomItemStack(PlayerHead.getItemStack(PlayerSkin.fromHashCode("847d73a91b52393f2c27e453fb89ab3d784054d414e390d58abd22512edd2b")), "&a异域花园"));
-        mainItemGroup = new SubItemGroup(new NamespacedKey(this, "plants_and_fruits"), nestedItemGroup, new CustomItemStack(PlayerHead.getItemStack(PlayerSkin.fromHashCode("a5a5c4a0a16dabc9b1ec72fc83e23ac15d0197de61b138babca7c8a29c820")), "&a异域花园 - 植物与水果"));
-        miscItemGroup = new SubItemGroup(new NamespacedKey(this, "misc"), nestedItemGroup, new CustomItemStack(PlayerHead.getItemStack(PlayerSkin.fromHashCode("606be2df2122344bda479feece365ee0e9d5da276afa0e8ce8d848f373dd131")), "&a异域花园 - 配料与工具"));
-        foodItemGroup = new SubItemGroup(new NamespacedKey(this, "food"), nestedItemGroup, new CustomItemStack(PlayerHead.getItemStack(PlayerSkin.fromHashCode("a14216d10714082bbe3f412423e6b19232352f4d64f9aca3913cb46318d3ed")), "&a异域花园 - 食物"));
-        drinksItemGroup = new SubItemGroup(new NamespacedKey(this, "drinks"), nestedItemGroup, new CustomItemStack(PlayerHead.getItemStack(PlayerSkin.fromHashCode("2a8f1f70e85825607d28edce1a2ad4506e732b4a5345a5ea6e807c4b313e88")), "&a异域花园 - 饮料"));
-        magicalItemGroup = new SubItemGroup(new NamespacedKey(this, "magical_crops"), nestedItemGroup, new CustomItemStack(Material.BLAZE_POWDER, "&5异域花园 - 魔法植物"));
-        techItemGroup = new SubItemGroup(new NamespacedKey(this, "tech"), nestedItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&a异域花园 &8- &b科技"));
+        nestedItemGroup = new NestedItemGroup(new NamespacedKey(this, "parent_category"), CustomItemStack.create(PlayerHead.getItemStack(PlayerSkin.fromHashCode("847d73a91b52393f2c27e453fb89ab3d784054d414e390d58abd22512edd2b")), "&a异域花园"));
+        mainItemGroup = new SubItemGroup(new NamespacedKey(this, "plants_and_fruits"), nestedItemGroup, CustomItemStack.create(PlayerHead.getItemStack(PlayerSkin.fromHashCode("a5a5c4a0a16dabc9b1ec72fc83e23ac15d0197de61b138babca7c8a29c820")), "&a异域花园 - 植物与水果"));
+        miscItemGroup = new SubItemGroup(new NamespacedKey(this, "misc"), nestedItemGroup, CustomItemStack.create(PlayerHead.getItemStack(PlayerSkin.fromHashCode("606be2df2122344bda479feece365ee0e9d5da276afa0e8ce8d848f373dd131")), "&a异域花园 - 配料与工具"));
+        foodItemGroup = new SubItemGroup(new NamespacedKey(this, "food"), nestedItemGroup, CustomItemStack.create(PlayerHead.getItemStack(PlayerSkin.fromHashCode("a14216d10714082bbe3f412423e6b19232352f4d64f9aca3913cb46318d3ed")), "&a异域花园 - 食物"));
+        drinksItemGroup = new SubItemGroup(new NamespacedKey(this, "drinks"), nestedItemGroup, CustomItemStack.create(PlayerHead.getItemStack(PlayerSkin.fromHashCode("2a8f1f70e85825607d28edce1a2ad4506e732b4a5345a5ea6e807c4b313e88")), "&a异域花园 - 饮料"));
+        magicalItemGroup = new SubItemGroup(new NamespacedKey(this, "magical_crops"), nestedItemGroup, CustomItemStack.create(Material.BLAZE_POWDER, "&5异域花园 - 魔法植物"));
+        techItemGroup = new SubItemGroup(new NamespacedKey(this, "tech"), nestedItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&a异域花园 &8- &b科技"));
 
         kitchen = new Kitchen(this, miscItemGroup);
         kitchen.register(this);
@@ -304,7 +289,7 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         // @formatter:off
         SlimefunItemStack iceCube = new SlimefunItemStack("ICE_CUBE", "9340bef2c2c33d113bac4e6a1a84d5ffcecbbfab6b32fa7a7f76195442bd1a2", "&b冰块");
-        new SlimefunItem(miscItemGroup, iceCube, RecipeType.GRIND_STONE, new ItemStack[] {new ItemStack(Material.ICE), null, null, null, null, null, null, null, null}, new SlimefunItemStack(iceCube, 4))
+        new SlimefunItem(miscItemGroup, iceCube, RecipeType.GRIND_STONE, new ItemStack[] {new ItemStack(Material.ICE), null, null, null, null, null, null, null, null}, CustomItemStack.create(iceCube.item(), 4))
                 .register(this);
 
         registerBerry("Grape", "葡萄", ChatColor.RED, Color.RED, PlantType.BUSH, "6ee97649bd999955413fcbf0b269c91be4342b10d0755bad7a17e95fcefdab0");
@@ -467,32 +452,32 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         registerMagicalPlant("Iron", "铁锭", new ItemStack(Material.IRON_INGOT), "db97bdf92b61926e39f5cddf12f8f7132929dee541771e0b592c8b82c9ad52d",
                 new ItemStack[] {null, new ItemStack(Material.IRON_BLOCK), null, new ItemStack(Material.IRON_BLOCK), getItem("COAL_PLANT"), new ItemStack(Material.IRON_BLOCK), null, new ItemStack(Material.IRON_BLOCK), null});
 
-        registerMagicalPlant("IronDust", "铁粉", new CustomItemStack(SlimefunItems.IRON_DUST, 8), "8385aaedd784faef8e8f6f782fa48d07c2fc2bbcf6fea1fbc9b9862d05d228c1",
+        registerMagicalPlant("IronDust", "铁粉", CustomItemStack.create(SlimefunItems.IRON_DUST.item(), 8), "8385aaedd784faef8e8f6f782fa48d07c2fc2bbcf6fea1fbc9b9862d05d228c1",
                 new ItemStack[] {null, new ItemStack(Material.IRON_BLOCK), null, new ItemStack(Material.IRON_BLOCK), getItem("IRON_PLANT"), new ItemStack(Material.IRON_BLOCK), null, new ItemStack(Material.IRON_BLOCK), null});
 
-        registerMagicalPlant("Gold", "金", SlimefunItems.GOLD_4K, "e4df892293a9236f73f48f9efe979fe07dbd91f7b5d239e4acfd394f6eca",
-                new ItemStack[] {null, SlimefunItems.GOLD_16K, null, SlimefunItems.GOLD_16K, getItem("IRON_PLANT"), SlimefunItems.GOLD_16K, null, SlimefunItems.GOLD_16K, null});
+        registerMagicalPlant("Gold", "金", SlimefunItems.GOLD_4K.item(), "e4df892293a9236f73f48f9efe979fe07dbd91f7b5d239e4acfd394f6eca",
+                new ItemStack[] {null, SlimefunItems.GOLD_16K.item(), null, SlimefunItems.GOLD_16K.item(), getItem("IRON_PLANT"), SlimefunItems.GOLD_16K.item(), null, SlimefunItems.GOLD_16K.item(), null});
 
-        registerMagicalPlant("Copper", "铜", new CustomItemStack(SlimefunItems.COPPER_DUST, 8), "d4fc72f3d5ee66279a45ac9c63ac98969306227c3f4862e9c7c2a4583c097b8a",
-                new ItemStack[] {null, SlimefunItems.COPPER_DUST, null, SlimefunItems.COPPER_DUST, getItem("COAL_PLANT"), SlimefunItems.COPPER_DUST, null, SlimefunItems.COPPER_DUST, null});
+        registerMagicalPlant("Copper", "铜", CustomItemStack.create(SlimefunItems.COPPER_DUST.item(), 8), "d4fc72f3d5ee66279a45ac9c63ac98969306227c3f4862e9c7c2a4583c097b8a",
+                new ItemStack[] {null, SlimefunItems.COPPER_DUST.item(), null, SlimefunItems.COPPER_DUST.item(), getItem("COAL_PLANT"), SlimefunItems.COPPER_DUST.item(), null, SlimefunItems.COPPER_DUST.item(), null});
 
-        registerMagicalPlant("Magnesium", "镁", new CustomItemStack(SlimefunItems.MAGNESIUM_DUST, 4), "e8c99d857a5b34331699ce6b5449d8d75f6c50b294ea1a29108f66ca086528bb",
-                new ItemStack[] {null, SlimefunItems.ALUMINUM_DUST, null, SlimefunItems.ALUMINUM_DUST, getItem("IRON_PLANT"), SlimefunItems.ALUMINUM_DUST, null, SlimefunItems.ALUMINUM_DUST, null});
+        registerMagicalPlant("Magnesium", "镁", CustomItemStack.create(SlimefunItems.MAGNESIUM_DUST.item(), 4), "e8c99d857a5b34331699ce6b5449d8d75f6c50b294ea1a29108f66ca086528bb",
+                new ItemStack[] {null, SlimefunItems.ALUMINUM_DUST.item(), null, SlimefunItems.ALUMINUM_DUST.item(), getItem("IRON_PLANT"), SlimefunItems.ALUMINUM_DUST.item(), null, SlimefunItems.ALUMINUM_DUST.item(), null});
 
-        registerMagicalPlant("Aluminum", "铝", new CustomItemStack(SlimefunItems.ALUMINUM_DUST, 4), "f4455341eaff3cf8fe6e46bdfed8f501b461fb6f6d2fe536be7d2bd90d2088aa",
-                new ItemStack[] {null, SlimefunItems.ALUMINUM_DUST, null, SlimefunItems.ALUMINUM_DUST, getItem("IRON_PLANT"), SlimefunItems.ALUMINUM_DUST, null, SlimefunItems.ALUMINUM_DUST, null});
+        registerMagicalPlant("Aluminum", "铝", CustomItemStack.create(SlimefunItems.ALUMINUM_DUST.item(), 4), "f4455341eaff3cf8fe6e46bdfed8f501b461fb6f6d2fe536be7d2bd90d2088aa",
+                new ItemStack[] {null, SlimefunItems.ALUMINUM_DUST.item(), null, SlimefunItems.ALUMINUM_DUST.item(), getItem("IRON_PLANT"), SlimefunItems.ALUMINUM_DUST.item(), null, SlimefunItems.ALUMINUM_DUST.item(), null});
 
-        registerMagicalPlant("Tin", "锡", new CustomItemStack(SlimefunItems.TIN_DUST, 4), "6efb43ba2fe6959180ee7307f3f054715a34c0a07079ab73712547ffd753dedd",
-                new ItemStack[] {null, SlimefunItems.TIN_DUST, null, SlimefunItems.TIN_DUST, getItem("IRON_PLANT"), SlimefunItems.TIN_DUST, null, SlimefunItems.TIN_DUST, null});
+        registerMagicalPlant("Tin", "锡", CustomItemStack.create(SlimefunItems.TIN_DUST.item(), 4), "6efb43ba2fe6959180ee7307f3f054715a34c0a07079ab73712547ffd753dedd",
+                new ItemStack[] {null, SlimefunItems.TIN_DUST.item(), null, SlimefunItems.TIN_DUST.item(), getItem("IRON_PLANT"), SlimefunItems.TIN_DUST.item(), null, SlimefunItems.TIN_DUST.item(), null});
 
-        registerMagicalPlant("Silver", "银", new CustomItemStack(SlimefunItems.SILVER_DUST, 8), "1dd968b1851aa7160d1cd9db7516a8e1bf7b7405e5245c5338aa895fe585f26c",
-                new ItemStack[] {null, SlimefunItems.SILVER_DUST, null, SlimefunItems.SILVER_DUST, getItem("IRON_PLANT"), SlimefunItems.SILVER_DUST, null, SlimefunItems.SILVER_DUST, null});
+        registerMagicalPlant("Silver", "银", CustomItemStack.create(SlimefunItems.SILVER_DUST.item(), 8), "1dd968b1851aa7160d1cd9db7516a8e1bf7b7405e5245c5338aa895fe585f26c",
+                new ItemStack[] {null, SlimefunItems.SILVER_DUST.item(), null, SlimefunItems.SILVER_DUST.item(), getItem("IRON_PLANT"), SlimefunItems.SILVER_DUST.item(), null, SlimefunItems.SILVER_DUST.item(), null});
 
-        registerMagicalPlant("Lead", "铅", new CustomItemStack(SlimefunItems.LEAD_DUST, 4), "93c3c418039c4b28b0da75a6d9b22712c7015432d4f4226d6cc0a77d54b64178",
-                new ItemStack[] {null, SlimefunItems.LEAD_DUST, null, SlimefunItems.LEAD_DUST, getItem("IRON_PLANT"), SlimefunItems.LEAD_DUST, null, SlimefunItems.LEAD_DUST, null});
+        registerMagicalPlant("Lead", "铅", CustomItemStack.create(SlimefunItems.LEAD_DUST.item(), 4), "93c3c418039c4b28b0da75a6d9b22712c7015432d4f4226d6cc0a77d54b64178",
+                new ItemStack[] {null, SlimefunItems.LEAD_DUST.item(), null, SlimefunItems.LEAD_DUST.item(), getItem("IRON_PLANT"), SlimefunItems.LEAD_DUST.item(), null, SlimefunItems.LEAD_DUST.item(), null});
 
-        registerMagicalPlant("Zinc", "锌", new CustomItemStack(SlimefunItems.ZINC_DUST, 4), "26ec74b9c9ed876ec9ae466a79c4c10f0a0fe7cd8dd49492cc103f2eaa7aa932",
-                new ItemStack[] {null, SlimefunItems.ZINC_DUST, null, SlimefunItems.ZINC_DUST, getItem("IRON_PLANT"), SlimefunItems.ZINC_DUST, null, SlimefunItems.ZINC_DUST, null});
+        registerMagicalPlant("Zinc", "锌", CustomItemStack.create(SlimefunItems.ZINC_DUST.item(), 4), "26ec74b9c9ed876ec9ae466a79c4c10f0a0fe7cd8dd49492cc103f2eaa7aa932",
+                new ItemStack[] {null, SlimefunItems.ZINC_DUST.item(), null, SlimefunItems.ZINC_DUST.item(), getItem("IRON_PLANT"), SlimefunItems.ZINC_DUST.item(), null, SlimefunItems.ZINC_DUST.item(), null});
 
         registerMagicalPlant("Redstone", "红石", new ItemStack(Material.REDSTONE, 8), "e8deee5866ab199eda1bdd7707bdb9edd693444f1e3bd336bd2c767151cf2",
                 new ItemStack[] {null, new ItemStack(Material.REDSTONE_BLOCK), null, new ItemStack(Material.REDSTONE_BLOCK), getItem("GOLD_PLANT"), new ItemStack(Material.REDSTONE_BLOCK), null, new ItemStack(Material.REDSTONE_BLOCK), null});
@@ -523,11 +508,11 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         registerMagicalPlant("Glowstone", "萤石", new ItemStack(Material.GLOWSTONE_DUST, 8), "65d7bed8df714cea063e457ba5e87931141de293dd1d9b9146b0f5ab383866",
                 new ItemStack[] { null, new ItemStack(Material.GLOWSTONE), null, new ItemStack(Material.GLOWSTONE), getItem("REDSTONE_PLANT"), new ItemStack(Material.GLOWSTONE), null, new ItemStack(Material.GLOWSTONE), null });
 
-        registerMagicalPlant("Sulfate", "硫酸盐", new CustomItemStack(SlimefunItems.SULFATE, 2), "20d9cb52a09f8f4a75b9bffe7ac20c0c85ac1ef57cf93fc2040436d660ba98ba",
-                new ItemStack[] { null, SlimefunItems.SULFATE, null, SlimefunItems.SULFATE, getItem("GLOWSTONE_PLANT"), SlimefunItems.SULFATE, null, SlimefunItems.SULFATE, null });
+        registerMagicalPlant("Sulfate", "硫酸盐", CustomItemStack.create(SlimefunItems.SULFATE.item(), 2), "20d9cb52a09f8f4a75b9bffe7ac20c0c85ac1ef57cf93fc2040436d660ba98ba",
+                new ItemStack[] { null, SlimefunItems.SULFATE.item(), null, SlimefunItems.SULFATE.item(), getItem("GLOWSTONE_PLANT"), SlimefunItems.SULFATE.item(), null, SlimefunItems.SULFATE.item(), null });
 
-        registerMagicalPlant("Uranium", "铀", new CustomItemStack(SlimefunItems.TINY_URANIUM,1), "90614e3abf64d53496794cd8ae68597fc7266c61794bd1e48d4519868ae3cad0",
-                new ItemStack[] { null, SlimefunItems.BOOSTED_URANIUM, null, SlimefunItems.BLISTERING_INGOT_3, getItem("SULFATE_PLANT"), SlimefunItems.BLISTERING_INGOT_3, null, SlimefunItems.BOOSTED_URANIUM, null });
+        registerMagicalPlant("Uranium", "铀", CustomItemStack.create(SlimefunItems.TINY_URANIUM.item(),1), "90614e3abf64d53496794cd8ae68597fc7266c61794bd1e48d4519868ae3cad0",
+                new ItemStack[] { null, SlimefunItems.BOOSTED_URANIUM.item(), null, SlimefunItems.BLISTERING_INGOT_3.item(), getItem("SULFATE_PLANT"), SlimefunItems.BLISTERING_INGOT_3.item(), null, SlimefunItems.BOOSTED_URANIUM.item(), null });
 
         registerMagicalPlant("Obsidian", "黑曜石", new ItemStack(Material.OBSIDIAN, 1), "7840b87d52271d2a755dedc82877e0ed3df67dcc42ea479ec146176b02779a5",
                 new ItemStack[] {null, new ItemStack(Material.OBSIDIAN), null, new ItemStack(Material.OBSIDIAN), getItem("LAPIS_PLANT"), new ItemStack(Material.OBSIDIAN), null, new ItemStack(Material.OBSIDIAN), null});
@@ -540,9 +525,9 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         registerMagicalPlant("Slime", "粘液球", new ItemStack(Material.SLIME_BALL, 8), "90e65e6e5113a5187dad46dfad3d3bf85e8ef807f82aac228a59c4a95d6f6a",
                 new ItemStack[] {null, new ItemStack(Material.SLIME_BALL), null, new ItemStack(Material.SLIME_BALL), getItem("ENDER_PLANT"), new ItemStack(Material.SLIME_BALL), null, new ItemStack(Material.SLIME_BALL), null});
 
-        SlimefunItemStack MysticSeed = new SlimefunItemStack("MYSTIC_SEED", new CustomItemStack(Material.MELON_SEEDS, "§d神秘种子", "", "§7从未见过的种子", "§7直接种植没有什么用", "§7但可以放到特定机器中进行分析"));
+        SlimefunItemStack MysticSeed = new SlimefunItemStack("MYSTIC_SEED", CustomItemStack.create(Material.MELON_SEEDS, "§d神秘种子", "", "§7从未见过的种子", "§7直接种植没有什么用", "§7但可以放到特定机器中进行分析"));
 
-        new GrassSeeds(ExoticGarden.instance.miscItemGroup, MysticSeed, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.GRASS), null, null, null, null})
+        new GrassSeeds(ExoticGarden.instance.miscItemGroup, MysticSeed, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.SHORT_GRASS), null, null, null, null})
                 .register(ExoticGarden.instance);
 
         registerTechPlant("咖啡豆", "&c", Material.COCOA_BEANS, PlantType.DOUBLE_PLANT, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTA4M2VjMmIwMWRjMGZlZTc5YWEzMjE4OGQ5NDI5YWNjNjhlY2Y3MTQwOGRjYTA0YWFhYjUzYWQ4YmVhMCJ9fX0=");
@@ -551,12 +536,12 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         registerTechPlant("酒香果", "&b", Material.OAK_LEAVES, PlantType.DOUBLE_PLANT, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzRjMDVkZDVkN2E5Mjg4OWQ4ZDIyZDRkZjBmMWExZmUyYmVlM2VkZGYxOTJmNzhmYzQ0ZTAyZTE0ZGJmNjI5In19fQ==");
 
-        new Crook(miscItemGroup, new SlimefunItemStack("CROOK", new CustomItemStack(Material.WOODEN_HOE, "&r钩子", "", "&7+ &b25% &7树苗掉落概率")), RecipeType.ENHANCED_CRAFTING_TABLE,
+        new Crook(miscItemGroup, new SlimefunItemStack("CROOK", CustomItemStack.create(Material.WOODEN_HOE, "&r钩子", "", "&7+ &b25% &7树苗掉落概率")), RecipeType.ENHANCED_CRAFTING_TABLE,
                 new ItemStack[] {new ItemStack(Material.STICK), new ItemStack(Material.STICK), null, null, new ItemStack(Material.STICK), null, null, new ItemStack(Material.STICK), null})
                 .register(this);
 
         SlimefunItemStack grassSeeds = new SlimefunItemStack("GRASS_SEEDS", Material.PUMPKIN_SEEDS, "&r草种子", "", "&7&o可以种在泥土上", "&7&o让泥土变成草方块");
-        new GrassSeeds(mainItemGroup, grassSeeds, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[] {null, null, null, null, new ItemStack(Material.GRASS), null, null, null, null})
+        new GrassSeeds(mainItemGroup, grassSeeds, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[] {null, null, null, null, new ItemStack(Material.SHORT_GRASS), null, null, null, null})
                 .register(this);
         // @formatter:on
 
@@ -566,8 +551,8 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         items.put("MELON_SEEDS", new ItemStack(Material.MELON_SEEDS));
 
 
-        items.put("GRASS_SEEDS", grassSeeds);
-        items.put("MYSTIC_SEED", MysticSeed);
+        items.put("GRASS_SEEDS", grassSeeds.item());
+        items.put("MYSTIC_SEED", MysticSeed.item());
 
         for (Material sapling : Tag.SAPLINGS.getValues()) {
             items.put(sapling.name(), new ItemStack(sapling));
@@ -595,7 +580,7 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
     }
 
     private void registerDishes() {
-        (new CustomFood(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWQ1ZThjNDg2YjUyNmRkYTgxMmI0MjQ0YzJmMjE5NDE4OWZiZWJjY2JlYmZiYTVhOTM3YTU2NTMzNWRhNDEyIn19fQ=="), "&3咖啡", new String[]{"", "&7提神醒脑的咖啡", "&7&o恢复&e2&7点饥饿", "&7&o恢复&e6&7点精神"}), "COFFEE", RecipeType.JUICER, new ItemStack[]{
+        (new CustomFood(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWQ1ZThjNDg2YjUyNmRkYTgxMmI0MjQ0YzJmMjE5NDE4OWZiZWJjY2JlYmZiYTVhOTM3YTU2NTMzNWRhNDEyIn19fQ=="), "&3咖啡", new String[]{"", "&7提神醒脑的咖啡", "&7&o恢复&e2&7点饥饿", "&7&o恢复&e6&7点精神"}), "COFFEE", RecipeType.JUICER, new ItemStack[]{
 
                 getItem("COFFEEBEAN"), null, null, null, null, null, null, null, null}, 2, 6.0F)).register(ExoticGarden.instance);
 
@@ -629,36 +614,36 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
                 .register(ExoticGarden.instance);
 
         (new CustomFood(drinksItemGroup, new CustomPotion("&6泰式甜茶", 8201, new String[]{"", "&7&o恢复 &b7.0 &7&o点饥饿值"}, new PotionEffect(PotionEffectType.SATURATION, 14, 0)), "THAI_TEA", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
-                getItem("TEA_LEAF"), new ItemStack(Material.SUGAR), SlimefunItems.HEAVY_CREAM, getItem("COCONUT_MILK"), null, null, null, null, null}, 7))
+                getItem("TEA_LEAF"), new ItemStack(Material.SUGAR), SlimefunItems.HEAVY_CREAM.item(), getItem("COCONUT_MILK"), null, null, null, null, null}, 7))
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjM0ODdkNDU3ZjkwNjJkNzg3YTNlNmNlMWM0NjY0YmY3NDAyZWM2N2RkMTExMjU2ZjE5YjM4Y2U0ZjY3MCJ9fX0="), "&e南瓜面包", new String[]{"", "&7&o恢复 &b4.0 &7&o点饥饿值"}), "PUMPKIN_BREAD", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{SlimefunItems.WHEAT_FLOUR, SlimefunItems.WHEAT_FLOUR, SlimefunItems.WHEAT_FLOUR, new ItemStack(Material.SUGAR), new ItemStack(Material.PUMPKIN), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.WHEAT_FLOUR, SlimefunItems.WHEAT_FLOUR}, 8))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjM0ODdkNDU3ZjkwNjJkNzg3YTNlNmNlMWM0NjY0YmY3NDAyZWM2N2RkMTExMjU2ZjE5YjM4Y2U0ZjY3MCJ9fX0="), "&e南瓜面包", new String[]{"", "&7&o恢复 &b4.0 &7&o点饥饿值"}), "PUMPKIN_BREAD", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.WHEAT_FLOUR.item(), new ItemStack(Material.SUGAR), new ItemStack(Material.PUMPKIN), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.WHEAT_FLOUR.item()}, 8))
 
 
                 .register(ExoticGarden.instance);
 
-        (new EGPlant(miscItemGroup, new CustomItemStack(getSkull(Material.MILK_BUCKET, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvN2Y4ZDUzNmM4YzJjMjU5NmJjYzE3MDk1OTBhOWQ3ZTMzMDYxYzU2ZTY1ODk3NGNkODFiYjgzMmVhNGQ4ODQyIn19fQ=="), "&e蛋黄酱"), "MAYO", RecipeType.GRIND_STONE, false, new ItemStack[]{new ItemStack(Material.EGG), null, null, null, null, null, null, null, null
+        (new EGPlant(miscItemGroup, CustomItemStack.create(getSkull(Material.MILK_BUCKET, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvN2Y4ZDUzNmM4YzJjMjU5NmJjYzE3MDk1OTBhOWQ3ZTMzMDYxYzU2ZTY1ODk3NGNkODFiYjgzMmVhNGQ4ODQyIn19fQ=="), "&e蛋黄酱"), "MAYO", RecipeType.GRIND_STONE, false, new ItemStack[]{new ItemStack(Material.EGG), null, null, null, null, null, null, null, null
 
 
         })).register(ExoticGarden.instance);
 
-        (new EGPlant(miscItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWI5ZTk5NjIxYjk3NzNiMjllMzc1ZTYyYzY0OTVmZjFhYzg0N2Y4NWIyOTgxNmMyZWI3N2I1ODc4NzRiYTYyIn19fQ=="), "&e芥末"), "MUSTARD", RecipeType.GRIND_STONE, false, new ItemStack[]{
+        (new EGPlant(miscItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWI5ZTk5NjIxYjk3NzNiMjllMzc1ZTYyYzY0OTVmZjFhYzg0N2Y4NWIyOTgxNmMyZWI3N2I1ODc4NzRiYTYyIn19fQ=="), "&e芥末"), "MUSTARD", RecipeType.GRIND_STONE, false, new ItemStack[]{
 
                 getItem("MUSTARD_SEED"), null, null, null, null, null, null, null, null
         })).register(ExoticGarden.instance);
 
-        (new EGPlant(miscItemGroup, new CustomItemStack(getSkull(Material.MILK_BUCKET, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTg2ZjE5YmYyM2QyNDhlNjYyYzljOGI3ZmExNWVmYjhhMWYxZDViZGFjZDNiODYyNWE5YjU5ZTkzYWM4YSJ9fX0="), "&c烤肉酱"), "BBQ_SAUCE", RecipeType.ENHANCED_CRAFTING_TABLE, false, new ItemStack[]{
+        (new EGPlant(miscItemGroup, CustomItemStack.create(getSkull(Material.MILK_BUCKET, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTg2ZjE5YmYyM2QyNDhlNjYyYzljOGI3ZmExNWVmYjhhMWYxZDViZGFjZDNiODYyNWE5YjU5ZTkzYWM4YSJ9fX0="), "&c烤肉酱"), "BBQ_SAUCE", RecipeType.ENHANCED_CRAFTING_TABLE, false, new ItemStack[]{
 
                 getItem("TOMATO"), getItem("MUSTARD"), getItem("SALT"), new ItemStack(Material.SUGAR), null, null, null, null, null
         })).register(ExoticGarden.instance);
 
-        (new SlimefunItem(miscItemGroup, new SlimefunItemStack("CORNMEAL", new CustomItemStack(Material.SUGAR, "&r玉米粉", new String[0])), RecipeType.GRIND_STONE, new ItemStack[]{
+        (new SlimefunItem(miscItemGroup, new SlimefunItemStack("CORNMEAL", CustomItemStack.create(Material.SUGAR, "&r玉米粉", new String[0])), RecipeType.GRIND_STONE, new ItemStack[]{
                 getItem("CORN"), null, null, null, null, null, null, null, null
         })).register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.INK_SAC, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODE5Zjk0OGQxNzcxOGFkYWNlNWRkNmUwNTBjNTg2MjI5NjUzZmVmNjQ1ZDcxMTNhYjk0ZDE3YjYzOWNjNDY2In19fQ=="), "&3巧克力棒", new String[]{"", "&7&o恢复 &b1.5 &7&o点饥饿值"}), "CHOCOLATE_BAR", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.INK_SAC)
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.INK_SAC, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODE5Zjk0OGQxNzcxOGFkYWNlNWRkNmUwNTBjNTg2MjI5NjUzZmVmNjQ1ZDcxMTNhYjk0ZDE3YjYzOWNjNDY2In19fQ=="), "&3巧克力棒", new String[]{"", "&7&o恢复 &b1.5 &7&o点饥饿值"}), "CHOCOLATE_BAR", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.INK_SAC)
 
-                , SlimefunItems.HEAVY_CREAM, null, null, null, null, null, null, null}, 3))
+                , SlimefunItems.HEAVY_CREAM.item(), null, null, null, null, null, null, null}, 3))
 
                 .register(ExoticGarden.instance);
 
@@ -667,13 +652,13 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
                 12)
                 .register(ExoticGarden.instance);
         
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&e鸡肉三明治", new String[]{"", "&7&o恢复 &b5.5 &7&o点饥饿值"}), "CHICKEN_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_CHICKEN),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&e鸡肉三明治", new String[]{"", "&7&o恢复 &b5.5 &7&o点饥饿值"}), "CHICKEN_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_CHICKEN),
 
                 getItem("MAYO"), new ItemStack(Material.BREAD), null, null, null, null, null, null}, 11))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3鱼肉三明治", new String[]{"", "&7&o恢复 &b5.5 &7&o点饥饿值"}), "FISH_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_COD),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3鱼肉三明治", new String[]{"", "&7&o恢复 &b5.5 &7&o点饥饿值"}), "FISH_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_COD),
 
                 getItem("MAYO"), new ItemStack(Material.BREAD), null, null, null, null, null, null}, 11))
 
@@ -699,149 +684,149 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
                 10)
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&r芝士蛋糕", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{null, new ItemStack(Material.SUGAR), null, SlimefunItems.HEAVY_CREAM, new ItemStack(Material.EGG), SlimefunItems.HEAVY_CREAM, SlimefunItems.WHEAT_FLOUR, SlimefunItems.WHEAT_FLOUR, SlimefunItems.WHEAT_FLOUR}, 16))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&r芝士蛋糕", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{null, new ItemStack(Material.SUGAR), null, SlimefunItems.HEAVY_CREAM.item(), new ItemStack(Material.EGG), SlimefunItems.HEAVY_CREAM.item(), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.WHEAT_FLOUR.item()}, 16))
 
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&c樱桃芝士蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "CHERRY_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&c樱桃芝士蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "CHERRY_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHEESECAKE"), getItem("CHERRY"), null, null, null, null, null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&9蓝莓芝士蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BLUEBERRY_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&9蓝莓芝士蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BLUEBERRY_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHEESECAKE"), getItem("BLUEBERRY"), null, null, null, null, null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&6南瓜芝士蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "PUMPKIN_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&6南瓜芝士蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "PUMPKIN_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHEESECAKE"), new ItemStack(Material.PUMPKIN), null, null, null, null, null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&6甜梨芝士蛋糕", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "SWEETENED_PEAR_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&6甜梨芝士蛋糕", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "SWEETENED_PEAR_CHEESECAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHEESECAKE"), new ItemStack(Material.SUGAR), getItem("PEAR"), null, null, null, null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
         new CustomFood(foodItemGroup, new SlimefunItemStack("BISCUIT", "ef094456fd794b6531fc6dec6f396b680b9536002063e11ce24d0a74b0b7d885", "&6小饼干", "", "&7&o恢复 &b&o" + "2.0" + " &7&o点饥饿值"),
-                new ItemStack[] {SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, null, null, null, null, null, null, null},
+                new ItemStack[] {SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), null, null, null, null, null, null, null},
                 4)
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzZjMzY1MjNjMmQxMWI4YzhlYTJlOTkyMjkxYzUyYTY1NDc2MGVjNzJkY2MzMmRhMmNiNjM2MTY0ODFlZSJ9fX0="), "&8黑莓脆皮饼", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "BLACKBERRY_COBBLER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.SUGAR),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzZjMzY1MjNjMmQxMWI4YzhlYTJlOTkyMjkxYzUyYTY1NDc2MGVjNzJkY2MzMmRhMmNiNjM2MTY0ODFlZSJ9fX0="), "&8黑莓脆皮饼", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "BLACKBERRY_COBBLER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.SUGAR),
 
-                getItem("BLACKBERRY"), SlimefunItems.WHEAT_FLOUR, null, null, null, null, null, null}, 12))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&e帕芙洛娃", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "PAVLOVA", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
-
-                getItem("LEMON"), getItem("STRAWBERRY"), new ItemStack(Material.SUGAR), new ItemStack(Material.EGG), SlimefunItems.HEAVY_CREAM, null, null, null, null}, 18))
+                getItem("BLACKBERRY"), SlimefunItems.WHEAT_FLOUR.item(), null, null, null, null, null, null}, 12))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(Material.GOLDEN_CARROT, "&6香甜玉米棒", new String[]{"", "&7&o恢复 &b3.0 &7&o点饥饿值"}), "CORN_ON_THE_COB", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{SlimefunItems.BUTTER,
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjM2NWI2MWU3OWZjYjkxM2JjODYwZjRlYzYzNWQ0YTZhYjFiNzRiZmFiNjJmYjZlYTZkODlhMTZhYTg0MSJ9fX0="), "&e帕芙洛娃", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "PAVLOVA", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+
+                getItem("LEMON"), getItem("STRAWBERRY"), new ItemStack(Material.SUGAR), new ItemStack(Material.EGG), SlimefunItems.HEAVY_CREAM.item(), null, null, null, null}, 18))
+
+                .register(ExoticGarden.instance);
+
+        (new CustomFood(foodItemGroup, CustomItemStack.create(Material.GOLDEN_CARROT, "&6香甜玉米棒", new String[]{"", "&7&o恢复 &b3.0 &7&o点饥饿值"}), "CORN_ON_THE_COB", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{SlimefunItems.BUTTER.item(),
                 getItem("CORN"), null, null, null, null, null, null, null}, 6))
 
                 .register(ExoticGarden.instance);
 
         new CustomFood(foodItemGroup, new SlimefunItemStack("CREAMED_CORN", "9174b34c549eed8bafe727618bab6821afcb1787b5decd1eecd6c213e7e7c6d", "&r奶油玉米", "", "&7&o恢复 &b&o" + "4.0" + " &7&o点饥饿值"),
-                new ItemStack[] {SlimefunItems.HEAVY_CREAM, getItem("CORN"), new ItemStack(Material.BOWL), null, null, null, null, null, null},
+                new ItemStack[] {SlimefunItems.HEAVY_CREAM.item(), getItem("CORN"), new ItemStack(Material.BOWL), null, null, null, null, null, null},
                 8)
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.COOKED_PORKCHOP, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZTdiYTIyZDVkZjIxZTgyMWE2ZGU0YjhjOWQzNzNhM2FhMTg3ZDhhZTc0ZjI4OGE4MmQyYjYxZjI3MmU1In19fQ=="), "&3培根", new String[]{"", "&7&o恢复 &b1.5 &7&o点饥饿值"}), "BACON", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_PORKCHOP), null, null, null, null, null, null, null, null}, 3))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.COOKED_PORKCHOP, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZTdiYTIyZDVkZjIxZTgyMWE2ZGU0YjhjOWQzNzNhM2FhMTg3ZDhhZTc0ZjI4OGE4MmQyYjYxZjI3MmU1In19fQ=="), "&3培根", new String[]{"", "&7&o恢复 &b1.5 &7&o点饥饿值"}), "BACON", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_PORKCHOP), null, null, null, null, null, null, null, null}, 3))
 
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3三明治", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3三明治", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
 
                 getItem("MAYO"), new ItemStack(Material.COOKED_BEEF), getItem("TOMATO"), getItem("LETTUCE"), null, null, null, null}, 19))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3BLT三明治", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "BLT", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_PORKCHOP),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3BLT三明治", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "BLT", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_PORKCHOP),
 
                 getItem("TOMATO"), getItem("LETTUCE"), null, null, null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3鲜蔬鸡肉三明治", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "LEAFY_CHICKEN_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3鲜蔬鸡肉三明治", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "LEAFY_CHICKEN_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHICKEN_SANDWICH"), getItem("LETTUCE"), null, null, null, null, null, null, null}, 13))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3时蔬鲜鱼三明治", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "LEAFY_FISH_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&3时蔬鲜鱼三明治", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "LEAFY_FISH_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("FISH_SANDWICH"), getItem("LETTUCE"), null, null, null, null, null, null, null}, 13))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&3汉堡", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "HAMBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_BEEF), null, null, null, null, null, null, null}, 10))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&3汉堡", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "HAMBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_BEEF), null, null, null, null, null, null, null}, 10))
 
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e芝士汉堡", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e芝士汉堡", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("HAMBURGER"), SlimefunItems.CHEESE, null, null, null, null, null, null, null}, 13))
+                getItem("HAMBURGER"), SlimefunItems.CHEESE.item(), null, null, null, null, null, null, null}, 13))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e培根芝士汉堡", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BACON_CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e培根芝士汉堡", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BACON_CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHEESEBURGER"), getItem("BACON"), null, null, null, null, null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e豪华芝士汉堡", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "DELUXE_CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e豪华芝士汉堡", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "DELUXE_CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHEESEBURGER"), getItem("LETTUCE"), getItem("TOMATO"), null, null, null, null, null, null}, 16))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjkxMzY1MTRmMzQyZTdjNTIwOGExNDIyNTA2YTg2NjE1OGVmODRkMmIyNDkyMjAxMzllOGJmNjAzMmUxOTMifX19"), "&c胡萝卜蛋糕", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "CARROT_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.CARROT), SlimefunItems.WHEAT_FLOUR, new ItemStack(Material.SUGAR), new ItemStack(Material.EGG), null, null, null, null, null}, 12))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjkxMzY1MTRmMzQyZTdjNTIwOGExNDIyNTA2YTg2NjE1OGVmODRkMmIyNDkyMjAxMzllOGJmNjAzMmUxOTMifX19"), "&c胡萝卜蛋糕", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "CARROT_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.CARROT), SlimefunItems.WHEAT_FLOUR.item(), new ItemStack(Material.SUGAR), new ItemStack(Material.EGG), null, null, null, null, null}, 12))
 
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&3鸡肉汉堡", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "CHICKEN_BURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_CHICKEN), null, null, null, null, null, null, null}, 10))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&3鸡肉汉堡", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "CHICKEN_BURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_CHICKEN), null, null, null, null, null, null, null}, 10))
 
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e鸡肉芝士汉堡", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "CHICKEN_CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&e鸡肉芝士汉堡", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "CHICKEN_CHEESEBURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("CHICKEN_BURGER"), SlimefunItems.CHEESE, null, null, null, null, null, null, null}, 13))
+                getItem("CHICKEN_BURGER"), SlimefunItems.CHEESE.item(), null, null, null, null, null, null, null}, 13))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&c培根汉堡", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "BACON_BURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RhZGYxNzQ0NDMzZTFjNzlkMWQ1OWQyNzc3ZDkzOWRlMTU5YTI0Y2Y1N2U4YTYxYzgyYmM0ZmUzNzc3NTUzYyJ9fX0="), "&c培根汉堡", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "BACON_BURGER", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
 
                 getItem("BACON"), null, null, null, null, null, null, null}, 10))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&c培根三明治", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "BACON_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&c培根三明治", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "BACON_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
 
                 getItem("BACON"), getItem("MAYO"), getItem("TOMATO"), getItem("LETTUCE"), null, null, null, null}, 19))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOThjZWQ3NGEyMjAyMWE1MzVmNmJjZTIxYzhjNjMyYjI3M2RjMmQ5NTUyYjcxYTM4ZDU3MjY5YjM1MzhjZiJ9fX0="), "&e墨西哥玉米卷", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TACO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOThjZWQ3NGEyMjAyMWE1MzVmNmJjZTIxYzhjNjMyYjI3M2RjMmQ5NTUyYjcxYTM4ZDU3MjY5YjM1MzhjZiJ9fX0="), "&e墨西哥玉米卷", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TACO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CORNMEAL"), new ItemStack(Material.COOKED_BEEF), getItem("LETTUCE"), getItem("TOMATO"), getItem("CHEESE"), null, null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOThjZWQ3NGEyMjAyMWE1MzVmNmJjZTIxYzhjNjMyYjI3M2RjMmQ5NTUyYjcxYTM4ZDU3MjY5YjM1MzhjZiJ9fX0="), "&3鲜鱼玉米卷", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "FISH_TACO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOThjZWQ3NGEyMjAyMWE1MzVmNmJjZTIxYzhjNjMyYjI3M2RjMmQ5NTUyYjcxYTM4ZDU3MjY5YjM1MzhjZiJ9fX0="), "&3鲜鱼玉米卷", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "FISH_TACO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CORNMEAL"), new ItemStack(Material.COOKED_COD), getItem("LETTUCE"), getItem("TOMATO"), getItem("CHEESE"), null, null, null, null}, 18))
 
@@ -852,130 +837,130 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
                 10)
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQ3ZjRmNWE3NGM2NjkxMjgwY2Q4MGU3MTQ4YjQ5YjJjZTE3ZGNmNjRmZDU1MzY4NjI3ZjVkOTJhOTc2YTZhOCJ9fX0="), "&e薄煎饼", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "PANCAKES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQ3ZjRmNWE3NGM2NjkxMjgwY2Q4MGU3MTQ4YjQ5YjJjZTE3ZGNmNjRmZDU1MzY4NjI3ZjVkOTJhOTc2YTZhOCJ9fX0="), "&e薄煎饼", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "PANCAKES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("WHEAT_FLOUR"), new ItemStack(Material.SUGAR), getItem("BUTTER"), new ItemStack(Material.EGG), new ItemStack(Material.EGG), null, null, null, null}, 12))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQ3ZjRmNWE3NGM2NjkxMjgwY2Q4MGU3MTQ4YjQ5YjJjZTE3ZGNmNjRmZDU1MzY4NjI3ZjVkOTJhOTc2YTZhOCJ9fX0="), "&b蓝莓煎饼", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "BLUEBERRY_PANCAKES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQ3ZjRmNWE3NGM2NjkxMjgwY2Q4MGU3MTQ4YjQ5YjJjZTE3ZGNmNjRmZDU1MzY4NjI3ZjVkOTJhOTc2YTZhOCJ9fX0="), "&b蓝莓煎饼", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "BLUEBERRY_PANCAKES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("PANCAKES"), getItem("BLUEBERRY"), null, null, null, null, null, null, null}, 13))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTYzYjhhZWFmMWRmMTE0ODhlZmM5YmQzMDNjMjMzYTg3Y2NiYTNiMzNmN2ZiYTljMmZlY2FlZTk1NjdmMDUzIn19fQ=="), "&e炸薯条", new String[]{"", "&7&o恢复 &b2.0 &7&o点饥饿值"}), "FRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.POTATO),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTYzYjhhZWFmMWRmMTE0ODhlZmM5YmQzMDNjMjMzYTg3Y2NiYTNiMzNmN2ZiYTljMmZlY2FlZTk1NjdmMDUzIn19fQ=="), "&e炸薯条", new String[]{"", "&7&o恢复 &b2.0 &7&o点饥饿值"}), "FRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.POTATO),
 
                 getItem("SALT"), null, null, null, null, null, null, null}, 4))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTQ5N2IxNDdjZmFlNTIyMDU1OTdmNzJlM2M0ZWY1MjUxMmU5Njc3MDIwZTRiNGZhNzUxMmMzYzZhY2RkOGMxIn19fQ=="), "&e爆米花", new String[]{"", "&7&o恢复 &b4.0 &7&o点饥饿值"}), "POPCORN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTQ5N2IxNDdjZmFlNTIyMDU1OTdmNzJlM2M0ZWY1MjUxMmU5Njc3MDIwZTRiNGZhNzUxMmMzYzZhY2RkOGMxIn19fQ=="), "&e爆米花", new String[]{"", "&7&o恢复 &b4.0 &7&o点饥饿值"}), "POPCORN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CORN"), getItem("BUTTER"), null, null, null, null, null, null, null}, 8))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTQ5N2IxNDdjZmFlNTIyMDU1OTdmNzJlM2M0ZWY1MjUxMmU5Njc3MDIwZTRiNGZhNzUxMmMzYzZhY2RkOGMxIn19fQ=="), "&e爆米花 &7(甜)", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "SWEET_POPCORN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTQ5N2IxNDdjZmFlNTIyMDU1OTdmNzJlM2M0ZWY1MjUxMmU5Njc3MDIwZTRiNGZhNzUxMmMzYzZhY2RkOGMxIn19fQ=="), "&e爆米花 &7(甜)", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "SWEET_POPCORN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CORN"), getItem("BUTTER"), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 12))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTQ5N2IxNDdjZmFlNTIyMDU1OTdmNzJlM2M0ZWY1MjUxMmU5Njc3MDIwZTRiNGZhNzUxMmMzYzZhY2RkOGMxIn19fQ=="), "&e爆米花 &7(咸)", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "SALTY_POPCORN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.POTATO, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTQ5N2IxNDdjZmFlNTIyMDU1OTdmNzJlM2M0ZWY1MjUxMmU5Njc3MDIwZTRiNGZhNzUxMmMzYzZhY2RkOGMxIn19fQ=="), "&e爆米花 &7(咸)", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "SALTY_POPCORN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CORN"), getItem("BUTTER"), getItem("SALT"), null, null, null, null, null, null}, 12))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&e牧羊人派", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "SHEPARDS_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&e牧羊人派", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "SHEPARDS_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("CABBAGE"), new ItemStack(Material.CARROT), SlimefunItems.WHEAT_FLOUR, new ItemStack(Material.COOKED_BEEF), getItem("TOMATO"), null, null, null, null}, 16))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&e鸡肉派", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "CHICKEN_POT_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_CHICKEN), new ItemStack(Material.CARROT), SlimefunItems.WHEAT_FLOUR, new ItemStack(Material.POTATO), null, null, null, null, null}, 17))
-
+                getItem("CABBAGE"), new ItemStack(Material.CARROT), SlimefunItems.WHEAT_FLOUR.item(), new ItemStack(Material.COOKED_BEEF), getItem("TOMATO"), null, null, null, null}, 16))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTExOWZjYTRmMjhhNzU1ZDM3ZmJlNWRjZjZkOGMzZWY1MGZlMzk0YzFhNzg1MGJjN2UyYjcxZWU3ODMwM2M0YyJ9fX0="), "&c巧克力蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "CHOCOLATE_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
-
-                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, new ItemStack(Material.EGG), null, null, null, null}, 17))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.COOKIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGZkNzFlMjBmYzUwYWJmMGRlMmVmN2RlY2ZjMDFjZTI3YWQ1MTk1NTc1OWUwNzJjZWFhYjk2MzU1ZjU5NGYwIn19fQ=="), "&r奶油曲奇", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "CREAM_COOKIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
-
-                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, SlimefunItems.HEAVY_CREAM, null, null, null, null}, 12))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM3OTRjNzM2ZmM3NmU0NTcwNjgzMDMyNWI5NTk2OTQ2NmQ4NmY4ZDdiMjhmY2U4ZWRiMmM3NWUyYWIyNWMifX19"), "&b蓝莓玛芬", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "BLUEBERRY_MUFFIN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
-
-                getItem("BLUEBERRY"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, SlimefunItems.HEAVY_CREAM, new ItemStack(Material.EGG), null, null, null}, 13))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM3OTRjNzM2ZmM3NmU0NTcwNjgzMDMyNWI5NTk2OTQ2NmQ4NmY4ZDdiMjhmY2U4ZWRiMmM3NWUyYWIyNWMifX19"), "&e南瓜玛芬", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "PUMPKIN_MUFFIN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.PUMPKIN), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, SlimefunItems.HEAVY_CREAM, new ItemStack(Material.EGG), null, null, null}, 13))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&e鸡肉派", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "CHICKEN_POT_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.COOKED_CHICKEN), new ItemStack(Material.CARROT), SlimefunItems.WHEAT_FLOUR.item(), new ItemStack(Material.POTATO), null, null, null, null, null}, 17))
 
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM3OTRjNzM2ZmM3NmU0NTcwNjgzMDMyNWI5NTk2OTQ2NmQ4NmY4ZDdiMjhmY2U4ZWRiMmM3NWUyYWIyNWMifX19"), "&c巧克力薄片玛芬", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "CHOCOLATE_CHIP_MUFFIN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTExOWZjYTRmMjhhNzU1ZDM3ZmJlNWRjZjZkOGMzZWY1MGZlMzk0YzFhNzg1MGJjN2UyYjcxZWU3ODMwM2M0YyJ9fX0="), "&c巧克力蛋糕", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "CHOCOLATE_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, SlimefunItems.HEAVY_CREAM, new ItemStack(Material.EGG), null, null, null}, 13))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGZkNzFlMjBmYzUwYWJmMGRlMmVmN2RlY2ZjMDFjZTI3YWQ1MTk1NTc1OWUwNzJjZWFhYjk2MzU1ZjU5NGYwIn19fQ=="), "&r波士顿奶油派", new String[]{"", "&7&o恢复 &b4.5 &7&o点饥饿值"}), "BOSTON_CREAM_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{null,
-
-                getItem("CHOCOLATE_BAR"), null, null, SlimefunItems.HEAVY_CREAM, null, null, getItem("BISCUIT"), null}, 9))
+                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), new ItemStack(Material.EGG), null, null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c香肠", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "HOT_DOG", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{null, null, null, null, new ItemStack(Material.COOKED_PORKCHOP), null, null, new ItemStack(Material.BREAD), null}, 10))
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.COOKIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGZkNzFlMjBmYzUwYWJmMGRlMmVmN2RlY2ZjMDFjZTI3YWQ1MTk1NTc1OWUwNzJjZWFhYjk2MzU1ZjU5NGYwIn19fQ=="), "&r奶油曲奇", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "CREAM_COOKIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+
+                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), SlimefunItems.HEAVY_CREAM.item(), null, null, null, null}, 12))
+
+                .register(ExoticGarden.instance);
+
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM3OTRjNzM2ZmM3NmU0NTcwNjgzMDMyNWI5NTk2OTQ2NmQ4NmY4ZDdiMjhmY2U4ZWRiMmM3NWUyYWIyNWMifX19"), "&b蓝莓玛芬", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "BLUEBERRY_MUFFIN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+
+                getItem("BLUEBERRY"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), SlimefunItems.HEAVY_CREAM.item(), new ItemStack(Material.EGG), null, null, null}, 13))
+
+                .register(ExoticGarden.instance);
+
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM3OTRjNzM2ZmM3NmU0NTcwNjgzMDMyNWI5NTk2OTQ2NmQ4NmY4ZDdiMjhmY2U4ZWRiMmM3NWUyYWIyNWMifX19"), "&e南瓜玛芬", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "PUMPKIN_MUFFIN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.PUMPKIN), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), SlimefunItems.HEAVY_CREAM.item(), new ItemStack(Material.EGG), null, null, null}, 13))
 
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c培根芝士香肠", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BACON_WRAPPED_CHEESE_FILLED_HOT_DOG", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM3OTRjNzM2ZmM3NmU0NTcwNjgzMDMyNWI5NTk2OTQ2NmQ4NmY4ZDdiMjhmY2U4ZWRiMmM3NWUyYWIyNWMifX19"), "&c巧克力薄片玛芬", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "CHOCOLATE_CHIP_MUFFIN", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+
+                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), SlimefunItems.HEAVY_CREAM.item(), new ItemStack(Material.EGG), null, null, null}, 13))
+
+                .register(ExoticGarden.instance);
+
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGZkNzFlMjBmYzUwYWJmMGRlMmVmN2RlY2ZjMDFjZTI3YWQ1MTk1NTc1OWUwNzJjZWFhYjk2MzU1ZjU5NGYwIn19fQ=="), "&r波士顿奶油派", new String[]{"", "&7&o恢复 &b4.5 &7&o点饥饿值"}), "BOSTON_CREAM_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{null,
+
+                getItem("CHOCOLATE_BAR"), null, null, SlimefunItems.HEAVY_CREAM.item(), null, null, getItem("BISCUIT"), null}, 9))
+
+                .register(ExoticGarden.instance);
+
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c香肠", new String[]{"", "&7&o恢复 &b5.0 &7&o点饥饿值"}), "HOT_DOG", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{null, null, null, null, new ItemStack(Material.COOKED_PORKCHOP), null, null, new ItemStack(Material.BREAD), null}, 10))
+
+
+                .register(ExoticGarden.instance);
+
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c培根芝士香肠", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BACON_WRAPPED_CHEESE_FILLED_HOT_DOG", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("BACON"), getItem("HOT_DOG"), getItem("BACON"), null, getItem("CHEESE"), null, null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c烤肉培根香肠", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BBQ_BACON_WRAPPED_HOT_DOG", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c烤肉培根香肠", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "BBQ_BACON_WRAPPED_HOT_DOG", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("BACON"), getItem("HOT_DOG"), getItem("BACON"), null, getItem("BBQ_SAUCE"), null, null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c双重烤肉培根香肠", new String[]{"", "&7&o恢复 &b10.0 &7&o点饥饿值"}), "BBQ_DOUBLE_BACON_WRAPPED_HOT_DOG_IN_A_TORTILLA_WITH_CHEESE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzNmMmQ3ZDdhOGIxYjk2OTE0Mjg4MWViNWE4N2U3MzdiNWY3NWZiODA4YjlhMTU3YWRkZGIyYzZhZWMzODIifX19"), "&c双重烤肉培根香肠", new String[]{"", "&7&o恢复 &b10.0 &7&o点饥饿值"}), "BBQ_DOUBLE_BACON_WRAPPED_HOT_DOG_IN_A_TORTILLA_WITH_CHEESE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("BACON"), getItem("BBQ_SAUCE"), getItem("BACON"), getItem("BACON"), new ItemStack(Material.COOKED_PORKCHOP), getItem("BACON"), getItem("CORNMEAL"), getItem("CHEESE"), getItem("CORNMEAL")}, 20))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZDhlOTRkZGQ3NjlhNWJlYTc0ODM3NmI0ZWM3MzgzZmQzNmQyNjc4OTRkN2MzYmVlMDExZThlNGY1ZmNkNyJ9fX0="), "&a甜茶", new String[]{"", "&7&o恢复 &b3.0 &7&o点饥饿值"}), "SWEETENED_TEA", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
+        (new CustomFood(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZDhlOTRkZGQ3NjlhNWJlYTc0ODM3NmI0ZWM3MzgzZmQzNmQyNjc4OTRkN2MzYmVlMDExZThlNGY1ZmNkNyJ9fX0="), "&a甜茶", new String[]{"", "&7&o恢复 &b3.0 &7&o点饥饿值"}), "SWEETENED_TEA", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
 
                 getItem("TEA_LEAF"), new ItemStack(Material.SUGAR), null, null, null, null, null, null, null}, 6))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDExNTExYmRkNTViY2I4MjgwM2M4MDM5ZjFjMTU1ZmQ0MzA2MjYzNmUyM2Q0ZDQ2YzRkNzYxYzA0ZDIyYzIifX19"), "&6热巧克力", new String[]{"", "&7&o恢复 &b4.0 &7&o点饥饿值"}), "HOT_CHOCOLATE", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
+        (new CustomFood(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDExNTExYmRkNTViY2I4MjgwM2M4MDM5ZjFjMTU1ZmQ0MzA2MjYzNmUyM2Q0ZDQ2YzRkNzYxYzA0ZDIyYzIifX19"), "&6热巧克力", new String[]{"", "&7&o恢复 &b4.0 &7&o点饥饿值"}), "HOT_CHOCOLATE", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
 
-                getItem("CHOCOLATE_BAR"), SlimefunItems.HEAVY_CREAM, null, null, null, null, null, null, null}, 8))
+                getItem("CHOCOLATE_BAR"), SlimefunItems.HEAVY_CREAM.item(), null, null, null, null, null, null, null}, 8))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMmE4ZjFmNzBlODU4MjU2MDdkMjhlZGNlMWEyYWQ0NTA2ZTczMmI0YTUzNDVhNWVhNmU4MDdjNGIzMTNlODgifX19"), "&6椰林飘香", new String[]{"", "&7&o恢复 &b7.0 &7&o点饥饿值"}), "PINACOLADA", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
+        (new CustomFood(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMmE4ZjFmNzBlODU4MjU2MDdkMjhlZGNlMWEyYWQ0NTA2ZTczMmI0YTUzNDVhNWVhNmU4MDdjNGIzMTNlODgifX19"), "&6椰林飘香", new String[]{"", "&7&o恢复 &b7.0 &7&o点饥饿值"}), "PINACOLADA", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
 
                 getItem("PINEAPPLE"), getItem("ICE_CUBE"), getItem("COCONUT_MILK"), null, null, null, null, null, null}, 14))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.NETHER_BRICK, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNmQ0ZWQ3YzczYWMyODUzZGZjYWE5Y2E3ODlmYjE4ZGExZDQ3YjE3YWQ2OGIyZGE3NDhkYmQxMWRlMWE0OWVmIn19fQ=="), "&c巧克力脆皮草莓", new String[]{"", "&7&o恢复 &b2.5 &7&o点饥饿值"}), "CHOCOLATE_STRAWBERRY", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.NETHER_BRICK, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNmQ0ZWQ3YzczYWMyODUzZGZjYWE5Y2E3ODlmYjE4ZGExZDQ3YjE3YWQ2OGIyZGE3NDhkYmQxMWRlMWE0OWVmIn19fQ=="), "&c巧克力脆皮草莓", new String[]{"", "&7&o恢复 &b2.5 &7&o点饥饿值"}), "CHOCOLATE_STRAWBERRY", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CHOCOLATE_BAR"), getItem("STRAWBERRY"), null, null, null, null, null, null, null}, 5))
 
@@ -985,54 +970,54 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
                 getItem("LEMON_JUICE"), new ItemStack(Material.SUGAR), null, null, null, null, null, null, null}, 3))
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&c地瓜派", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "SWEET_POTATO_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&c地瓜派", new String[]{"", "&7&o恢复 &b6.5 &7&o点饥饿值"}), "SWEET_POTATO_PIE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("SWEET_POTATO"), new ItemStack(Material.EGG), SlimefunItems.HEAVY_CREAM, SlimefunItems.WHEAT_FLOUR, null, null, null, null, null}, 13))
+                getItem("SWEET_POTATO"), new ItemStack(Material.EGG), SlimefunItems.HEAVY_CREAM.item(), SlimefunItems.WHEAT_FLOUR.item(), null, null, null, null, null}, 13))
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTExOWZjYTRmMjhhNzU1ZDM3ZmJlNWRjZjZkOGMzZWY1MGZlMzk0YzFhNzg1MGJjN2UyYjcxZWU3ODMwM2M0YyJ9fX0="), "&r巧克力椰丝蛋糕", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "LAMINGTON", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTExOWZjYTRmMjhhNzU1ZDM3ZmJlNWRjZjZkOGMzZWY1MGZlMzk0YzFhNzg1MGJjN2UyYjcxZWU3ODMwM2M0YyJ9fX0="), "&r巧克力椰丝蛋糕", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "LAMINGTON", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, getItem("COCONUT"), null, null, null, null}, 18))
+                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), getItem("COCONUT"), null, null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQ3ZjRmNWE3NGM2NjkxMjgwY2Q4MGU3MTQ4YjQ5YjJjZTE3ZGNmNjRmZDU1MzY4NjI3ZjVkOTJhOTc2YTZhOCJ9fX0="), "&e华夫饼", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "WAFFLES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQ3ZjRmNWE3NGM2NjkxMjgwY2Q4MGU3MTQ4YjQ5YjJjZTE3ZGNmNjRmZDU1MzY4NjI3ZjVkOTJhOTc2YTZhOCJ9fX0="), "&e华夫饼", new String[]{"", "&7&o恢复 &b6.0 &7&o点饥饿值"}), "WAFFLES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("WHEAT_FLOUR"), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), getItem("BUTTER"), null, null, null, null, null}, 12))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&e俱乐部三明治", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "CLUB_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0MjE2ZDEwNzE0MDgyYmJlM2Y0MTI0MjNlNmIxOTIzMjM1MmY0ZDY0ZjlhY2EzOTEzY2I0NjMxOGQzZWQifX19"), "&e俱乐部三明治", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "CLUB_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD),
 
                 getItem("MAYO"), getItem("BACON"), getItem("TOMATO"), getItem("LETTUCE"), getItem("MUSTARD"), null, null, null}, 19))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTM4N2E2MjFlMjY2MTg2ZTYwNjgzMzkyZWIyNzRlYmIyMjViMDQ4NjhhYjk1OTE3N2Q5ZGMxODFkOGYyODYifX19"), "&e卷饼", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "BURRITO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTM4N2E2MjFlMjY2MTg2ZTYwNjgzMzkyZWIyNzRlYmIyMjViMDQ4NjhhYjk1OTE3N2Q5ZGMxODFkOGYyODYifX19"), "&e卷饼", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "BURRITO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CORNMEAL"), new ItemStack(Material.COOKED_BEEF), getItem("LETTUCE"), getItem("TOMATO"), getItem("HEAVY_CREAM"), getItem("CHEESE"), null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTM4N2E2MjFlMjY2MTg2ZTYwNjgzMzkyZWIyNzRlYmIyMjViMDQ4NjhhYjk1OTE3N2Q5ZGMxODFkOGYyODYifX19"), "&e鸡肉卷饼", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "CHICKEN_BURRITO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTM4N2E2MjFlMjY2MTg2ZTYwNjgzMzkyZWIyNzRlYmIyMjViMDQ4NjhhYjk1OTE3N2Q5ZGMxODFkOGYyODYifX19"), "&e鸡肉卷饼", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "CHICKEN_BURRITO", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("CORNMEAL"), new ItemStack(Material.COOKED_CHICKEN), getItem("LETTUCE"), getItem("TOMATO"), getItem("HEAVY_CREAM"), getItem("CHEESE"), null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFlZTg0ZDE5Yzg1YWZmNzk2Yzg4YWJkYTIxZWM0YzkyYzY1NWUyZDY3YjcyZTVlNzdiNWFhNWU5OWVkIn19fQ=="), "&c烧烤三明治", new String[]{"", "&7&o恢复 &b5.5 &7&o点饥饿值"}), "GRILLED_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_PORKCHOP),
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFlZTg0ZDE5Yzg1YWZmNzk2Yzg4YWJkYTIxZWM0YzkyYzY1NWUyZDY3YjcyZTVlNzdiNWFhNWU5OWVkIn19fQ=="), "&c烧烤三明治", new String[]{"", "&7&o恢复 &b5.5 &7&o点饥饿值"}), "GRILLED_SANDWICH", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.COOKED_PORKCHOP),
 
                 getItem("CHEESE"), null, null, null, null, null, null}, 11))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMDNhMzU3NGE4NDhmMzZhZTM3MTIxZTkwNThhYTYxYzEyYTI2MWVlNWEzNzE2ZjZkODI2OWUxMWUxOWUzNyJ9fX0="), "&c千层面", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "LASAGNA", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.BREAD, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMDNhMzU3NGE4NDhmMzZhZTM3MTIxZTkwNThhYTYxYzEyYTI2MWVlNWEzNzE2ZjZkODI2OWUxMWUxOWUzNyJ9fX0="), "&c千层面", new String[]{"", "&7&o恢复 &b8.5 &7&o点饥饿值"}), "LASAGNA", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("TOMATO"), getItem("CHEESE"), SlimefunItems.WHEAT_FLOUR, getItem("TOMATO"), getItem("CHEESE"), new ItemStack(Material.COOKED_BEEF), null, null, null}, 17))
+                getItem("TOMATO"), getItem("CHEESE"), SlimefunItems.WHEAT_FLOUR.item(), getItem("TOMATO"), getItem("CHEESE"), new ItemStack(Material.COOKED_BEEF), null, null, null}, 17))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTUzNjZjYTE3OTc0ODkyZTRmZDRjN2I5YjE4ZmViMTFmMDViYTJlYzQ3YWE1MDM1YzgxYTk1MzNiMjgifX19"), "&r冰激凌", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "ICE_CREAM", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTUzNjZjYTE3OTc0ODkyZTRmZDRjN2I5YjE4ZmViMTFmMDViYTJlYzQ3YWE1MDM1YzgxYTk1MzNiMjgifX19"), "&r冰激凌", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "ICE_CREAM", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("HEAVY_CREAM"), getItem("ICE_CUBE"), new ItemStack(Material.SUGAR), new ItemStack(Material.INK_SAC), getItem("STRAWBERRY"), null, null, null, null}, 16))
 
@@ -1046,234 +1031,234 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
                 getItem("PINEAPPLE_JUICE"), getItem("ICE_CUBE"), null, null, null, null, null, null, null}, 5))
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&r提拉米苏", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "TIRAMISU", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&r提拉米苏", new String[]{"", "&7&o恢复 &b8.0 &7&o点饥饿值"}), "TIRAMISU", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("HEAVY_CREAM"), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), new ItemStack(Material.INK_SAC), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), null, null, null}, 16))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&c草莓提拉米苏", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TIRAMISU_WITH_STRAWBERRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&c草莓提拉米苏", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TIRAMISU_WITH_STRAWBERRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("TIRAMISU"), getItem("STRAWBERRY"), null, null, null, null, null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&c覆盆子提拉米苏", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TIRAMISU_WITH_RASPBERRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&c覆盆子提拉米苏", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TIRAMISU_WITH_RASPBERRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("TIRAMISU"), getItem("RASPBERRY"), null, null, null, null, null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&7黑莓提拉米苏", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TIRAMISU_WITH_BLACKBERRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.SNOWBALL, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTY5MDkxZDI4ODAyMmM3YjBlYjZkM2UzZjQ0YjBmZWE3ZjJjMDY5ZjQ5NzQ5MWExZGNhYjU4N2ViMWQ1NmQ0In19fQ=="), "&7黑莓提拉米苏", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "TIRAMISU_WITH_BLACKBERRIES", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
                 getItem("TIRAMISU"), getItem("BLACKBERRY"), null, null, null, null, null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTExOWZjYTRmMjhhNzU1ZDM3ZmJlNWRjZjZkOGMzZWY1MGZlMzk0YzFhNzg1MGJjN2UyYjcxZWU3ODMwM2M0YyJ9fX0="), "&e巧克力香梨蛋糕", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "CHOCOLATE_PEAR_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTExOWZjYTRmMjhhNzU1ZDM3ZmJlNWRjZjZkOGMzZWY1MGZlMzk0YzFhNzg1MGJjN2UyYjcxZWU3ODMwM2M0YyJ9fX0="), "&e巧克力香梨蛋糕", new String[]{"", "&7&o恢复 &b9.5 &7&o点饥饿值"}), "CHOCOLATE_PEAR_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, getItem("PEAR"), new ItemStack(Material.EGG), null, null, null}, 19))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomFood(foodItemGroup, new CustomItemStack(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&c苹果香梨蛋糕", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "APPLE_PEAR_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
-
-                getItem("APPLE"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR, SlimefunItems.BUTTER, getItem("PEAR"), new ItemStack(Material.EGG), null, null, null}, 18))
+                getItem("CHOCOLATE_BAR"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), getItem("PEAR"), new ItemStack(Material.EGG), null, null, null}, 19))
 
                 .register(ExoticGarden.instance);
 
+        (new CustomFood(foodItemGroup, CustomItemStack.create(getSkull(Material.PUMPKIN_PIE, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxOGM2YjBhMjlmYzFmZTc5MWM4OTc3NGQ4MjhmZjYzZDJhOWZhNmM4MzM3M2VmM2FhNDdiZjNlYjc5In19fQ=="), "&c苹果香梨蛋糕", new String[]{"", "&7&o恢复 &b9.0 &7&o点饥饿值"}), "APPLE_PEAR_CAKE", ExoticGardenRecipeTypes.KITCHEN, new ItemStack[]{
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2M2YjRhN2JkODI0NDE2MTliYmMxMWQ5YjhlMGU2NGFlOGI5NWYyZTQwYjM5MjEzNTVmY2M1NDM0MzI2MDE3In19fQ=="), "&3土烧", new String[]{"&8初级酒", "&7传统的土法制酒", "&7味道一般但胜在天然", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e2"}), "NORMAL_BREW", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1, new ItemStack(Material.WHEAT), new ItemStack(Material.WHEAT), null, null, null, null, null, null}, 2, 3.0F, 20))
-
-                .register(ExoticGarden.instance);
-
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&3苹果酒", new String[]{"&8初级酒", "&7甜酸的苹果发酵而来", "&7是一种传统的果酒", "", "&7▷▷ &b酒精度: &e15", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "APPLE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1, new ItemStack(Material.APPLE), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 15))
+                getItem("APPLE"), new ItemStack(Material.SUGAR), SlimefunItems.WHEAT_FLOUR.item(), SlimefunItems.BUTTER.item(), getItem("PEAR"), new ItemStack(Material.EGG), null, null, null}, 18))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2M2YjRhN2JkODI0NDE2MTliYmMxMWQ5YjhlMGU2NGFlOGI5NWYyZTQwYjM5MjEzNTVmY2M1NDM0MzI2MDE3In19fQ=="), "&3格瓦斯", new String[]{"&8初级酒", "&7一种传统的东欧饮料", "&7由面包发酵而来", "", "&7▷▷ &b酒精度: &e10", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e6"}), "BREAD_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1, new ItemStack(Material.BREAD), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 6, 3.0F, 10))
+
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2M2YjRhN2JkODI0NDE2MTliYmMxMWQ5YjhlMGU2NGFlOGI5NWYyZTQwYjM5MjEzNTVmY2M1NDM0MzI2MDE3In19fQ=="), "&3土烧", new String[]{"&8初级酒", "&7传统的土法制酒", "&7味道一般但胜在天然", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e2"}), "NORMAL_BREW", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(), new ItemStack(Material.WHEAT), new ItemStack(Material.WHEAT), null, null, null, null, null, null}, 2, 3.0F, 20))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjc2MmRmYjJmMjQ0YjU2NWVhZjY5Yzg1ZTkyNDY4M2E5ODU0MWVhODg2ZDkzZDFhMzA0NTEyYWEzZDM2NzY2MyJ9fX0="), "&3土豆酒", new String[]{"&8初级酒", "&7廉价易制的酒", "&7有一种特殊的香气", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "POTATO_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1, new ItemStack(Material.POTATO), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 20))
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&3苹果酒", new String[]{"&8初级酒", "&7甜酸的苹果发酵而来", "&7是一种传统的果酒", "", "&7▷▷ &b酒精度: &e15", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "APPLE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(), new ItemStack(Material.APPLE), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 15))
 
                 .register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&3下界酒", new String[]{"&8初级酒", "&7来自下界的酿品", "&7饮用后有些其妙的感觉...", "", "&7▷▷ &b酒精度: &e25", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "NETHER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1, new ItemStack(Material.NETHER_WART), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 25, new PotionEffect[]{new PotionEffect(PotionEffectType.SPEED, 200, 1)
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2M2YjRhN2JkODI0NDE2MTliYmMxMWQ5YjhlMGU2NGFlOGI5NWYyZTQwYjM5MjEzNTVmY2M1NDM0MzI2MDE3In19fQ=="), "&3格瓦斯", new String[]{"&8初级酒", "&7一种传统的东欧饮料", "&7由面包发酵而来", "", "&7▷▷ &b酒精度: &e10", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e6"}), "BREAD_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(), new ItemStack(Material.BREAD), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 6, 3.0F, 10))
+
+                .register(ExoticGarden.instance);
+
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjc2MmRmYjJmMjQ0YjU2NWVhZjY5Yzg1ZTkyNDY4M2E5ODU0MWVhODg2ZDkzZDFhMzA0NTEyYWEzZDM2NzY2MyJ9fX0="), "&3土豆酒", new String[]{"&8初级酒", "&7廉价易制的酒", "&7有一种特殊的香气", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "POTATO_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(), new ItemStack(Material.POTATO), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 20))
+
+                .register(ExoticGarden.instance);
+
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&3下界酒", new String[]{"&8初级酒", "&7来自下界的酿品", "&7饮用后有些其妙的感觉...", "", "&7▷▷ &b酒精度: &e25", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "NETHER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(), new ItemStack(Material.NETHER_WART), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 25, new PotionEffect[]{new PotionEffect(PotionEffectType.SPEED, 200, 1)
 
 
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2M2YjRhN2JkODI0NDE2MTliYmMxMWQ5YjhlMGU2NGFlOGI5NWYyZTQwYjM5MjEzNTVmY2M1NDM0MzI2MDE3In19fQ=="), "&3酸奶酒", new String[]{"&8初级酒", "&7特殊的牛奶酿造品", "&7饮用后有些许的解酒功效", "", "&7▷▷ &b酒精度: &e-10", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e8"}), "MILK_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1, new ItemStack(Material.MILK_BUCKET), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 8, 1.0F, -10, new PotionEffect[]{new PotionEffect(PotionEffectType.SPEED, 200, 1)
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2M2YjRhN2JkODI0NDE2MTliYmMxMWQ5YjhlMGU2NGFlOGI5NWYyZTQwYjM5MjEzNTVmY2M1NDM0MzI2MDE3In19fQ=="), "&3酸奶酒", new String[]{"&8初级酒", "&7特殊的牛奶酿造品", "&7饮用后有些许的解酒功效", "", "&7▷▷ &b酒精度: &e-10", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e8"}), "MILK_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(), new ItemStack(Material.MILK_BUCKET), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 8, 1.0F, -10, new PotionEffect[]{new PotionEffect(PotionEffectType.SPEED, 200, 1)
 
 
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGFmODE4ZjNmNGNjMmI3YzhlNzBmOGJlYWY4MGY3OWU5MjY1YjMzZmJmZDcxNzZjN2MzMzQ5ZDRiNzZiIn19fQ=="), "&3紫影酒", new String[]{"&8初级酒", "&7来自终末之地的酿品", "&7会让人失去几秒的疼痛感", "", "&7▷▷ &b酒精度: &e25", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "ENDER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1, new ItemStack(Material.CHORUS_FRUIT), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 25, new PotionEffect[]{new PotionEffect(PotionEffectType.ABSORPTION, 160, 1)
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGFmODE4ZjNmNGNjMmI3YzhlNzBmOGJlYWY4MGY3OWU5MjY1YjMzZmJmZDcxNzZjN2MzMzQ5ZDRiNzZiIn19fQ=="), "&3紫影酒", new String[]{"&8初级酒", "&7来自终末之地的酿品", "&7会让人失去几秒的疼痛感", "", "&7▷▷ &b酒精度: &e25", "&7▷▷ &d精神值: &e3", "&7▷▷ &a饱食度: &e4"}), "ENDER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(), new ItemStack(Material.CHORUS_FRUIT), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 3.0F, 25, new PotionEffect[]{new PotionEffect(PotionEffectType.ABSORPTION, 160, 1)
 
 
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjk2MWVhNThkYWZlYzlmNmM2OGZmZDE2MTU3ZjI4OTc0ZmE2NmI3YTRjOWVkMmRhMmFjYWQ0Nzc3MTdjODZmMyJ9fX0="), "&f土浆酒", new String[]{"&8初级酒", "&7由泥巴发酵而成", "&7不堪入口，但是酒精浓度很高", "", "&7▷▷ &b酒精度: &e650", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e1"}), "DIRT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjk2MWVhNThkYWZlYzlmNmM2OGZmZDE2MTU3ZjI4OTc0ZmE2NmI3YTRjOWVkMmRhMmFjYWQ0Nzc3MTdjODZmMyJ9fX0="), "&f土浆酒", new String[]{"&8初级酒", "&7由泥巴发酵而成", "&7不堪入口，但是酒精浓度很高", "", "&7▷▷ &b酒精度: &e650", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e1"}), "DIRT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_1, new ItemStack[]{ExoticItems.Yeast_1.item(),
 
                 getItem("DIRT_ESSENCE"), new ItemStack(Material.MUDDY_MANGROVE_ROOTS), null, null, null, null, null, null}, 1, 1.0F, 50, new PotionEffect[]{new PotionEffect(VersionedPotionEffectType.CONFUSION, 240, 4)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(miscItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTQ2NDk4OTgxNjYzMGE2YzQ0ZTljYTQ1MjA5NDk5MmVmNDYyZDdlMjIxODk3NzMzN2Y2ODljNzdjNzI0MTk5OCJ9fX0="), "&6强效维他命", new String[]{"&8解酒药", "&7一种强效解酒药", "&7可以快速降低醉酒值", "", "&7▷▷ &b酒精度: &e-100", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e1"}), "ENHANCE_VITAMIN", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(miscItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTQ2NDk4OTgxNjYzMGE2YzQ0ZTljYTQ1MjA5NDk5MmVmNDYyZDdlMjIxODk3NzMzN2Y2ODljNzdjNzI0MTk5OCJ9fX0="), "&6强效维他命", new String[]{"&8解酒药", "&7一种强效解酒药", "&7可以快速降低醉酒值", "", "&7▷▷ &b酒精度: &e-100", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e1"}), "ENHANCE_VITAMIN", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("VITAMINS"), new ItemStack(Material.GLISTERING_MELON_SLICE), null, null, null, null, null, null}, 1, 1.0F, -100, new PotionEffect[]{new PotionEffect(PotionEffectType.REGENERATION, 100, 1)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWViZjQ4OGU1YzRkZDY4NzhjOTNiMGI0OTk2ZDc4ZDYwNGU2Zjg5YTAxYTBmYTc4Y2FkZDI5Mzk3NzY1NmQwZiJ9fX0="), "&b冰玉酿", new String[]{"&8中级酒", "&7来自冰川的臻酿", "&7入口冰爽", "", "&7▷▷ &b酒精度: &e610", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e8"}), "ICEJADE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWViZjQ4OGU1YzRkZDY4NzhjOTNiMGI0OTk2ZDc4ZDYwNGU2Zjg5YTAxYTBmYTc4Y2FkZDI5Mzk3NzY1NmQwZiJ9fX0="), "&b冰玉酿", new String[]{"&8中级酒", "&7来自冰川的臻酿", "&7入口冰爽", "", "&7▷▷ &b酒精度: &e610", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e8"}), "ICEJADE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("ICE_CUBE"), new ItemStack(Material.BLUE_ICE), null, null, null, null, null, null}, 8, 20.0F, 10, new PotionEffect[]{new PotionEffect(PotionEffectType.SPEED, 240, 1)
         })).register(ExoticGarden.instance);
         
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjM0NDVmNjIwOTM3ZWE2NGRkODg5ZjRiMTVkNzlhODE5ZmNmNjBiNGY0ZDgwMjM0NDdjNzgzOGQwYmYyNTM1NCJ9fX0="), "&c石榴浆", new String[]{"&8中级酒", "&7一种看上去像是血的饮品", "&7有醇厚的发酵香味", "", "&7▷▷ &b酒精度: &e15", "&7▷▷ &d精神值: &e50", "&7▷▷ &a饱食度: &e7"}), "POMEGRANATE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjM0NDVmNjIwOTM3ZWE2NGRkODg5ZjRiMTVkNzlhODE5ZmNmNjBiNGY0ZDgwMjM0NDdjNzgzOGQwYmYyNTM1NCJ9fX0="), "&c石榴浆", new String[]{"&8中级酒", "&7一种看上去像是血的饮品", "&7有醇厚的发酵香味", "", "&7▷▷ &b酒精度: &e15", "&7▷▷ &d精神值: &e50", "&7▷▷ &a饱食度: &e7"}), "POMEGRANATE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("POMEGRANATE"), new ItemStack(Material.BEETROOT), null, null, null, null, null, null}, 7, 50.0F, 15, new PotionEffect[]{new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 240, 1)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGFmODE4ZjNmNGNjMmI3YzhlNzBmOGJlYWY4MGY3OWU5MjY1YjMzZmJmZDcxNzZjN2MzMzQ5ZDRiNzZiIn19fQ=="), "&b二锅头", new String[]{"&8中级酒", "&7经典的蒸馏型白酒", "&7酒精度数很高", "", "&7▷▷ &b酒精度: &e65", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "WHITE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGFmODE4ZjNmNGNjMmI3YzhlNzBmOGJlYWY4MGY3OWU5MjY1YjMzZmJmZDcxNzZjN2MzMzQ5ZDRiNzZiIn19fQ=="), "&b二锅头", new String[]{"&8中级酒", "&7经典的蒸馏型白酒", "&7酒精度数很高", "", "&7▷▷ &b酒精度: &e65", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "WHITE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("NORMAL_BREW"), new ItemStack(Material.WHEAT), null, null, null, null, null, null}, 4, 15.0F, 65, new PotionEffect[]{new PotionEffect(VersionedPotionEffectType.INCREASE_DAMAGE, 240, 1)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjc2MmRmYjJmMjQ0YjU2NWVhZjY5Yzg1ZTkyNDY4M2E5ODU0MWVhODg2ZDkzZDFhMzA0NTEyYWEzZDM2NzY2MyJ9fX0="), "&b苹果醋", new String[]{"&8中级酒", "&7香甜的苹果酒继续发酵制成", "&7酸甜可口，几乎没有酒精度", "", "&7▷▷ &b酒精度: &e5", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e10"}), "APPLE_VINEGAR", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjc2MmRmYjJmMjQ0YjU2NWVhZjY5Yzg1ZTkyNDY4M2E5ODU0MWVhODg2ZDkzZDFhMzA0NTEyYWEzZDM2NzY2MyJ9fX0="), "&b苹果醋", new String[]{"&8中级酒", "&7香甜的苹果酒继续发酵制成", "&7酸甜可口，几乎没有酒精度", "", "&7▷▷ &b酒精度: &e5", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e10"}), "APPLE_VINEGAR", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("APPLE_WINE"), getItem("APPLE"), null, null, null, null, null, null}, 10, 10.0F, 5, new PotionEffect[]{new PotionEffect(PotionEffectType.LUCK, 200, 1)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&b赤炎酒", new String[]{"&8中级酒", "&7如火焰般的酿品", "&7非常辣口但却令人精神舒畅无惧烈焰", "", "&7▷▷ &b酒精度: &e60", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e4"}), "FIRE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&b赤炎酒", new String[]{"&8中级酒", "&7如火焰般的酿品", "&7非常辣口但却令人精神舒畅无惧烈焰", "", "&7▷▷ &b酒精度: &e60", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e4"}), "FIRE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("NETHER_WINE"), new ItemStack(Material.MAGMA_CREAM), null, null, null, null, null, null}, 4, 20.0F, 60, new PotionEffect[]{new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 1200, 1)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&b葡萄酒", new String[]{"&8中级酒", "&7传统的葡萄酒", "&7酸甜中略微有一股特殊的苦涩味", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "GRAPE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZlMWExZjNjNzcxNTNhYmZlMzhjZjgyZWVmMzZhOGJmN2VjMzJjM2M0MTc1NzZiMDU5YTVmMmU2ZGI0YmY3In19fQ=="), "&b葡萄酒", new String[]{"&8中级酒", "&7传统的葡萄酒", "&7酸甜中略微有一股特殊的苦涩味", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "GRAPE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("GRAPE"), getItem("GRAPE"), null, null, null, null, null, null}, 4, 15.0F, 20)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&b玉米酒", new String[]{"&8中级酒", "&7富含淀粉的玉米发酵而来", "&7兼有玉米清香与酒的醇香", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "CORN_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&b玉米酒", new String[]{"&8中级酒", "&7富含淀粉的玉米发酵而来", "&7兼有玉米清香与酒的醇香", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "CORN_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("CORN"), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 15.0F, 25)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&b黄酒", new String[]{"&8中级酒", "&7拥有特殊酱香味的酒", "&7既可以饮用也可以用于烹饪", "", "&7▷▷ &b酒精度: &e30", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "YELLOW_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&b黄酒", new String[]{"&8中级酒", "&7拥有特殊酱香味的酒", "&7既可以饮用也可以用于烹饪", "", "&7▷▷ &b酒精度: &e30", "&7▷▷ &d精神值: &e15", "&7▷▷ &a饱食度: &e4"}), "YELLOW_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("SWEET_POTATO"), new ItemStack(Material.SUGAR), null, null, null, null, null, null}, 4, 15.0F, 30)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDA1M2UyNjg2N2JiNTc1MzhlOTc4OTEzN2RiYmI1Mzc3NGUxOGVkYTZmZWY1MWNiMmVkZjQyNmIzNzI2NCJ9fX0="), "&b淡啤酒", new String[]{"&8中级酒", "&7清淡的啤酒", "&7冰镇后风味更佳", "", "&7▷▷ &b酒精度: &e10", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e2"}), "LIGHT_BEER", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDA1M2UyNjg2N2JiNTc1MzhlOTc4OTEzN2RiYmI1Mzc3NGUxOGVkYTZmZWY1MWNiMmVkZjQyNmIzNzI2NCJ9fX0="), "&b淡啤酒", new String[]{"&8中级酒", "&7清淡的啤酒", "&7冰镇后风味更佳", "", "&7▷▷ &b酒精度: &e10", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e2"}), "LIGHT_BEER", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("WINEFRUIT"), getItem("WINEFRUIT"), null, null, null, null, null, null}, 2, 10.0F, 10)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjBjOGFhMTNlMTJhZjYxNWNiMzYyZjhhZjk0ZGQ1ZWEyNzgxODM5MDdmZTBhYmQ4NGQ2NWEwNzk5OTJkYTQifX19"), "&b啤酒", new String[]{"&8中级酒", "&7苦涩味略重的啤酒", "&7冰镇后风味更佳", "", "&7▷▷ &b酒精度: &e15", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e4"}), "BEER", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjBjOGFhMTNlMTJhZjYxNWNiMzYyZjhhZjk0ZGQ1ZWEyNzgxODM5MDdmZTBhYmQ4NGQ2NWEwNzk5OTJkYTQifX19"), "&b啤酒", new String[]{"&8中级酒", "&7苦涩味略重的啤酒", "&7冰镇后风味更佳", "", "&7▷▷ &b酒精度: &e15", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e4"}), "BEER", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("WINEFRUIT"), new ItemStack(Material.WHEAT), null, null, null, null, null, null}, 4, 10.0F, 15)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&b朗姆酒", new String[]{"&8中级酒", "&7来自古巴的传统佳酿", "&7由海盗和商贩们传向世界各地", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e6"}), "RUM_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&b朗姆酒", new String[]{"&8中级酒", "&7来自古巴的传统佳酿", "&7由海盗和商贩们传向世界各地", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e6"}), "RUM_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("LIME"), new ItemStack(Material.VINE), null, null, null, null, null, null}, 6, 20.0F, 40)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDA1M2UyNjg2N2JiNTc1MzhlOTc4OTEzN2RiYmI1Mzc3NGUxOGVkYTZmZWY1MWNiMmVkZjQyNmIzNzI2NCJ9fX0="), "&b菠萝啤", new String[]{"&8中级酒", "&7使用菠萝特别调制的啤酒", "&7酸甜可口而又有啤酒淡淡的苦涩味", "", "&7▷▷ &b酒精度: &e18", "&7▷▷ &d精神值: &e16", "&7▷▷ &a饱食度: &e12"}), "PINEAPPLE_BEER", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDA1M2UyNjg2N2JiNTc1MzhlOTc4OTEzN2RiYmI1Mzc3NGUxOGVkYTZmZWY1MWNiMmVkZjQyNmIzNzI2NCJ9fX0="), "&b菠萝啤", new String[]{"&8中级酒", "&7使用菠萝特别调制的啤酒", "&7酸甜可口而又有啤酒淡淡的苦涩味", "", "&7▷▷ &b酒精度: &e18", "&7▷▷ &d精神值: &e16", "&7▷▷ &a饱食度: &e12"}), "PINEAPPLE_BEER", ExoticGardenRecipeTypes.ElectricityBrewing_2, new ItemStack[]{ExoticItems.Yeast_2.item(),
 
                 getItem("BEER"), getItem("PINEAPPLE"), null, null, null, null, null, null}, 12, 16.0F, 18)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjU3M2JlZjQwNDc4OTY1NmE2ZmQyMTc0OWU4NWY2OTI0Y2ZlODQ4NmFjMDZhNzgxOTRhZDc1ZjM0YzJiMTRhNSJ9fX0="), "&f甜松露酒", new String[]{"&8高级酒", "&7一种可以搭配饭后甜点的高档酒", "&7拥有椰子风味", "", "&7▷▷ &b酒精度: &e30", "&7▷▷ &d精神值: &e80", "&7▷▷ &a饱食度: &e5"}), "SWEET_TRUFFLE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjU3M2JlZjQwNDc4OTY1NmE2ZmQyMTc0OWU4NWY2OTI0Y2ZlODQ4NmFjMDZhNzgxOTRhZDc1ZjM0YzJiMTRhNSJ9fX0="), "&f甜松露酒", new String[]{"&8高级酒", "&7一种可以搭配饭后甜点的高档酒", "&7拥有椰子风味", "", "&7▷▷ &b酒精度: &e30", "&7▷▷ &d精神值: &e80", "&7▷▷ &a饱食度: &e5"}), "SWEET_TRUFFLE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 new ItemStack(Material.SUGAR_CANE), getItem("COCONUT"), null, null, null, null, null, null}, 5, 80.0F, 30)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjIwMzUxYmMzNGYwNTQ4YjE2ZDhiMTE1MDM4NWFmMjkwZjY0Y2UyODcwYTgyMzM2YzAyZjVmYjExNDQ5NDg0NyJ9fX0="), "&e金玉露", new String[]{"&8高级酒", "&7气味较烈", "&7仔细品有金属风味", "", "&7▷▷ &b酒精度: &e55", "&7▷▷ &d精神值: &e50", "&7▷▷ &a饱食度: &e8"}), "VINHO_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjIwMzUxYmMzNGYwNTQ4YjE2ZDhiMTE1MDM4NWFmMjkwZjY0Y2UyODcwYTgyMzM2YzAyZjVmYjExNDQ5NDg0NyJ9fX0="), "&e金玉露", new String[]{"&8高级酒", "&7气味较烈", "&7仔细品有金属风味", "", "&7▷▷ &b酒精度: &e55", "&7▷▷ &d精神值: &e50", "&7▷▷ &a饱食度: &e8"}), "VINHO_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("GOLD_24K"), new ItemStack(Material.HONEY_BOTTLE), null, null, null, null, null, null}, 8, 50.0F, 55)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzg1NWFmMjllOTJkMzgwYTg3NDQyZjliMTViMDI5YmJiNTkyNmE4YTFmNDVmNWQzOWJkNWRjNThiZTYxODk3NyJ9fX0="), "&b歌海娜酒", new String[]{"&8高级酒", "&7气味清香", "&7有海洋风味", "", "&7▷▷ &b酒精度: &e30", "&7▷▷ &d精神值: &e58", "&7▷▷ &a饱食度: &e10"}), "GRENACHE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzg1NWFmMjllOTJkMzgwYTg3NDQyZjliMTViMDI5YmJiNTkyNmE4YTFmNDVmNWQzOWJkNWRjNThiZTYxODk3NyJ9fX0="), "&b歌海娜酒", new String[]{"&8高级酒", "&7气味清香", "&7有海洋风味", "", "&7▷▷ &b酒精度: &e30", "&7▷▷ &d精神值: &e58", "&7▷▷ &a饱食度: &e10"}), "GRENACHE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("ORGANIC_FOOD_KELP"), getItem("LEEK"), null, null, null, null, null, null}, 10, 58.0F, 30)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvN2M0MmIwMTdiNmRmYTk2OWFhMGM2ZWFhOTdkNjJkMzVhNGEwZTE3NGViYjljMzQ2OWVmNjE1OGViNGYyMDgyOCJ9fX0="), "&6西拉红葡萄酒", new String[]{"&8高级酒", "&7一款高档葡萄酒", "&7具有混合葡萄风味", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e60", "&7▷▷ &a饱食度: &e9"}), "SHIRAZ_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvN2M0MmIwMTdiNmRmYTk2OWFhMGM2ZWFhOTdkNjJkMzVhNGEwZTE3NGViYjljMzQ2OWVmNjE1OGViNGYyMDgyOCJ9fX0="), "&6西拉红葡萄酒", new String[]{"&8高级酒", "&7一款高档葡萄酒", "&7具有混合葡萄风味", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e60", "&7▷▷ &a饱食度: &e9"}), "SHIRAZ_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("DREAMFRUIT"), getItem("GRAPE"), null, null, null, null, null, null}, 9, 60.0F, 40)).register(ExoticGarden.instance);
                 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGE5OTk1YzM5OGFkMDJhZTQxYjMxMDlmOTljM2IwMWM4OGI0MjVjNDRkYmQzZDFiZmNlMjY2NjI3OTcwYzhhYyJ9fX0="), "&c墨尔乐酒", new String[]{"&8高级酒", "&7单宁含量较低，口感柔和", "&7有水果香气", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e70", "&7▷▷ &a饱食度: &e10"}), "MERLOT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGE5OTk1YzM5OGFkMDJhZTQxYjMxMDlmOTljM2IwMWM4OGI0MjVjNDRkYmQzZDFiZmNlMjY2NjI3OTcwYzhhYyJ9fX0="), "&c墨尔乐酒", new String[]{"&8高级酒", "&7单宁含量较低，口感柔和", "&7有水果香气", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e70", "&7▷▷ &a饱食度: &e10"}), "MERLOT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("PLUM"), getItem("COFFEEBEAN"), null, null, null, null, null, null}, 10, 70.0F, 20)).register(ExoticGarden.instance);
                 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjJjMTdjNzBlNmFjYWE1Mzk5YWU5ODY2OTYxODViODQ5YWRiZGUzM2ZjMTRlMmUzYTg0MDgxMjc4Y2Y2NjM3NyJ9fX0="), "&4黑比诺酒", new String[]{"&8高级酒", "&7寒带地区特色红酒", "&7口感冰爽醇厚", "", "&7▷▷ &b酒精度: &e60", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e4"}), "PINOT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjJjMTdjNzBlNmFjYWE1Mzk5YWU5ODY2OTYxODViODQ5YWRiZGUzM2ZjMTRlMmUzYTg0MDgxMjc4Y2Y2NjM3NyJ9fX0="), "&4黑比诺酒", new String[]{"&8高级酒", "&7寒带地区特色红酒", "&7口感冰爽醇厚", "", "&7▷▷ &b酒精度: &e60", "&7▷▷ &d精神值: &e20", "&7▷▷ &a饱食度: &e4"}), "PINOT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("SWEET_POTATO"), getItem("WINEFRUIT"), null, null, null, null, null, null}, 4, 20.0F, 60)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjU4OWZkMDAxMzM2ZTcyM2JmN2RmNWMwM2YyZmI4MDYxOTQ2NTQ0YjljODI5YzI3NmI3ZWNhZTQ4NGFhYmY4OCJ9fX0="), "&e发光浆果酒", new String[]{"&8高级酒", "&7来自洞穴陈酿", "&7有特殊浆果风味", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e80", "&7▷▷ &a饱食度: &e8"}), "GLOWBERRY_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjU4OWZkMDAxMzM2ZTcyM2JmN2RmNWMwM2YyZmI4MDYxOTQ2NTQ0YjljODI5YzI3NmI3ZWNhZTQ4NGFhYmY4OCJ9fX0="), "&e发光浆果酒", new String[]{"&8高级酒", "&7来自洞穴陈酿", "&7有特殊浆果风味", "", "&7▷▷ &b酒精度: &e20", "&7▷▷ &d精神值: &e80", "&7▷▷ &a饱食度: &e8"}), "GLOWBERRY_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 new ItemStack(Material.GLOW_BERRIES), new ItemStack(Material.BIG_DRIPLEAF), null, null, null, null, null, null}, 8, 80.0F, 20)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTBhY2RlZWQ2MDcyNWQ5NWI2OTExNDM3MmQ3MDI0ZjlkNjY4ZjlmZTc0NjkzN2UwNTkzMjhiYmZiZmY2In19fQ=="), "&6仙馐酒", new String[]{"&8高级酒", "&7由神秘的仙馐果酿制", "&7拥有梦幻般的味道", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e30", "&7▷▷ &a饱食度: &e10"}), "DREAMFRUIT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTBhY2RlZWQ2MDcyNWQ5NWI2OTExNDM3MmQ3MDI0ZjlkNjY4ZjlmZTc0NjkzN2UwNTkzMjhiYmZiZmY2In19fQ=="), "&6仙馐酒", new String[]{"&8高级酒", "&7由神秘的仙馐果酿制", "&7拥有梦幻般的味道", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e30", "&7▷▷ &a饱食度: &e10"}), "DREAMFRUIT_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("DREAMFRUIT"), getItem("LEMON"), null, null, null, null, null, null}, 10, 30.0F, 40)).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&6金果酒", new String[]{"&8高级酒", "&7金苹果酿制的酒", "&7拥有梦幻般的味道", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e30", "&7▷▷ &a饱食度: &e16"}), "GLODAPPLE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3, new ItemStack(Material.GOLDEN_APPLE),
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&6金果酒", new String[]{"&8高级酒", "&7金苹果酿制的酒", "&7拥有梦幻般的味道", "", "&7▷▷ &b酒精度: &e40", "&7▷▷ &d精神值: &e30", "&7▷▷ &a饱食度: &e16"}), "GLODAPPLE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(), new ItemStack(Material.GOLDEN_APPLE),
 
                 getItem("NETHER_WINE"), null, null, null, null, null, null}, 16, 30.0F, 40, new PotionEffect[]{new PotionEffect(PotionEffectType.ABSORPTION, 600, 1), new PotionEffect(VersionedPotionEffectType.DAMAGE_RESISTANCE, 600, 1), new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 1400, 1)
 
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&6英雄酒", new String[]{"&8高级酒", "&7远古时期的祭祀用酒", "&7通常用于纪念名垂青史的英雄", "", "&7英雄已然逝去", "&7历史仍将继续", "", "&7▷▷ &b酒精度: &e60", "&7▷▷ &d精神值: &e30", "&7▷▷ &a饱食度: &e10"}), "HERO_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjFiMzVmNzA3N2VjZjk4ZWYzZWJhMGYzNWQ5M2E5ODEzMDMwZjliOGI4ZTQyNmFlYjY4ZGFiMzhmMTExNiJ9fX0="), "&6英雄酒", new String[]{"&8高级酒", "&7远古时期的祭祀用酒", "&7通常用于纪念名垂青史的英雄", "", "&7英雄已然逝去", "&7历史仍将继续", "", "&7▷▷ &b酒精度: &e60", "&7▷▷ &d精神值: &e30", "&7▷▷ &a饱食度: &e10"}), "HERO_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("WHITE_WINE"), getItem("YELLOW_WINE"), null, null, null, null, null, null}, 10, 30.0F, 60, new PotionEffect[]{new PotionEffect(PotionEffectType.ABSORPTION, 600, 1), new PotionEffect(VersionedPotionEffectType.DAMAGE_RESISTANCE, 600, 1), new PotionEffect(VersionedPotionEffectType.INCREASE_DAMAGE, 1400, 1)
 
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTQ4ZmRjMDg3MWJiM2M4NDBkZWRjNDE2ZDljNTYzZmRlNGQzNTU2NTJiYzYwMWZkMzA5Yjg5NDQ2NDE1NzM4NiJ9fX0="), "&a长生不老酒", new String[]{"&8高级酒", "&7据说是古代皇帝最喜欢饮用的酒", "&7味烈，有刺激性气味", "", "&7▷▷ &b酒精度: &e200", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e1"}), "UNDYING_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTQ4ZmRjMDg3MWJiM2M4NDBkZWRjNDE2ZDljNTYzZmRlNGQzNTU2NTJiYzYwMWZkMzA5Yjg5NDQ2NDE1NzM4NiJ9fX0="), "&a长生不老酒", new String[]{"&8高级酒", "&7据说是古代皇帝最喜欢饮用的酒", "&7味烈，有刺激性气味", "", "&7▷▷ &b酒精度: &e200", "&7▷▷ &d精神值: &e10", "&7▷▷ &a饱食度: &e1"}), "UNDYING_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_3.item(),
 
                 getItem("GINSENGBABY"), getItem("NETHER_ICE"), null, null, null, null, null, null}, 1, 10.0F, 200, new PotionEffect[]{new PotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE, 600, 2), new PotionEffect(PotionEffectType.POISON, 600, 0), new PotionEffect(PotionEffectType.UNLUCK, 1400, 1)
 
         })).register(ExoticGarden.instance);
 
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWVkOGE5ODVkYTdiMzRiZjkyODdiYWQyMWY2YmZlY2FiMWQ5MGZiOGEyZjlmMTMwNWJmMzI4ZWE4ZGNmIn19fQ=="), "&d琼浆玉液", new String[]{"&8特级酒", "&7此物只应天上有", "&7人间能得几回闻", "", "&7▷▷ &b酒精度: &e70", "&7▷▷ &d精神值: &e60", "&7▷▷ &a饱食度: &e10"}), "SUPER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWVkOGE5ODVkYTdiMzRiZjkyODdiYWQyMWY2YmZlY2FiMWQ5MGZiOGEyZjlmMTMwNWJmMzI4ZWE4ZGNmIn19fQ=="), "&d琼浆玉液", new String[]{"&8特级酒", "&7此物只应天上有", "&7人间能得几回闻", "", "&7▷▷ &b酒精度: &e70", "&7▷▷ &d精神值: &e60", "&7▷▷ &a饱食度: &e10"}), "SUPER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("DREAMFRUIT_WINE"), getItem("YELLOW_WINE"), null, null, null, null, null, null}, 10, 60.0F, 70, new PotionEffect[]{new PotionEffect(PotionEffectType.HEALTH_BOOST, 600, 1), new PotionEffect(VersionedPotionEffectType.HEAL, 20, 1), new PotionEffect(PotionEffectType.SPEED, 1400, 2)
 
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjc1NTg0ZTZmZDU0Y2EwMWRmNGVmZmQ1Zjc0NmIyZDgzYTU4OWRlNjc3NzU1NzU2YmI1OGQ5ZWEyODQ1MTYifX19"), "&d醉生梦死", "&8特级酒", "&7醉入癫狂无谓死", "&7梦醒味逝不知生", "", "&7▷▷ &b酒精度: &e90", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e6"), "DREAMER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjc1NTg0ZTZmZDU0Y2EwMWRmNGVmZmQ1Zjc0NmIyZDgzYTU4OWRlNjc3NzU1NzU2YmI1OGQ5ZWEyODQ1MTYifX19"), "&d醉生梦死", "&8特级酒", "&7醉入癫狂无谓死", "&7梦醒味逝不知生", "", "&7▷▷ &b酒精度: &e90", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e6"), "DREAMER_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("DREAMFRUIT_WINE"), getItem("WHITE_WINE"), null, null, null, null, null, null}, 6, 100.0F, 90, new PotionEffect[]{new PotionEffect(VersionedPotionEffectType.CONFUSION, 600, 1)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjJjYTBkN2Q0NTA0ZWQ5YjNkZWYxNGE0NmRlZDEzYTQ1NDY4MWEyMTlkODhmNThjMGIzYjU4MWVjYjJmYzk0NyJ9fX0="), "&6香槟", "&8特级酒", "&7著名起泡酒", "&7建议搭配肉类一同使用", "", "&7▷▷ &b酒精度: &e80", "&7▷▷ &d精神值: &e90", "&7▷▷ &a饱食度: &e6"), "CHAMPAGNE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjJjYTBkN2Q0NTA0ZWQ5YjNkZWYxNGE0NmRlZDEzYTQ1NDY4MWEyMTlkODhmNThjMGIzYjU4MWVjYjJmYzk0NyJ9fX0="), "&6香槟", "&8特级酒", "&7著名起泡酒", "&7建议搭配肉类一同使用", "", "&7▷▷ &b酒精度: &e80", "&7▷▷ &d精神值: &e90", "&7▷▷ &a饱食度: &e6"), "CHAMPAGNE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("SHIRAZ_WINE"), getItem("TEQUILA"), null, null, null, null, null, null}, 6, 90.0F, 80, new PotionEffect[]{new PotionEffect(PotionEffectType.GLOWING, 600, 1)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWVlYjE0M2Y2MmRlOWZhNjMzMjBjNjQ3MjMzOGUzNDM5ODM0OTIwMmIzZDg5MzNhN2RkMDJmYzYyM2QxYmQyOCJ9fX0="), "&d末影酿", "&8特级酒", "&7末地风味气泡酒", "&7刚中带柔，令人一飞冲天", "", "&7▷▷ &b酒精度: &e120", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e4"), "ENDERDREAM_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWVlYjE0M2Y2MmRlOWZhNjMzMjBjNjQ3MjMzOGUzNDM5ODM0OTIwMmIzZDg5MzNhN2RkMDJmYzYyM2QxYmQyOCJ9fX0="), "&d末影酿", "&8特级酒", "&7末地风味气泡酒", "&7刚中带柔，令人一飞冲天", "", "&7▷▷ &b酒精度: &e120", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e4"), "ENDERDREAM_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("ENDER_WINE"), getItem("ENDER_LUMP_3"), null, null, null, null, null, null}, 4, 100.0F, 120, new PotionEffect[]{new PotionEffect(PotionEffectType.LEVITATION, 600, 4)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTY3ZjJiYzQxMWRkMzhmMzExMWZlMWEzN2UxNzliZGNhYjY2ZTUwOWMyYWZmMjcwMjgxNGQ1ZTA3YTRmYWViNiJ9fX0="), "&e盛宴啤酒", "&8特级酒", "&7最高档的啤酒", "&7量大管饱，清香四溢", "", "&7▷▷ &b酒精度: &e95", "&7▷▷ &d精神值: &e90", "&7▷▷ &a饱食度: &e8"), "PARTY_BEER", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTY3ZjJiYzQxMWRkMzhmMzExMWZlMWEzN2UxNzliZGNhYjY2ZTUwOWMyYWZmMjcwMjgxNGQ1ZTA3YTRmYWViNiJ9fX0="), "&e盛宴啤酒", "&8特级酒", "&7最高档的啤酒", "&7量大管饱，清香四溢", "", "&7▷▷ &b酒精度: &e95", "&7▷▷ &d精神值: &e90", "&7▷▷ &a饱食度: &e8"), "PARTY_BEER", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("PINEAPPLE_BEER"), getItem("RAINBOW_FRUITS"), null, null, null, null, null, null}, 8, 90.0F, 95, new PotionEffect[]{new PotionEffect(PotionEffectType.CONDUIT_POWER, 1000, 3)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWUxNjJkYWEzMzFjNmNmOGQ2MTM4YjgzZmI4NDhiZDM1Yzc4ZDJmNWYyMTk5ZGU2ZTllMThhNDM4ODI2NWI3In19fQ=="), "&6燃油饮", "&8特级酒", "&7绝望吧台", "&7FIRE!FIRE!", "", "&7▷▷ &b酒精度: &e150", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e16"), "BURNING_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWUxNjJkYWEzMzFjNmNmOGQ2MTM4YjgzZmI4NDhiZDM1Yzc4ZDJmNWYyMTk5ZGU2ZTllMThhNDM4ODI2NWI3In19fQ=="), "&6燃油饮", "&8特级酒", "&7绝望吧台", "&7FIRE!FIRE!", "", "&7▷▷ &b酒精度: &e150", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e16"), "BURNING_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("GLODAPPLE_WINE"), getItem("BUCKET_OF_FUEL"), null, null, null, null, null, null}, 16, 100.0F, 150, new PotionEffect[]{new PotionEffect(PotionEffectType.REGENERATION, 1000, 5)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjI5MGY2YjZkN2NkN2NkYTIzNjhjZTNmMzk3YTUxNDVjMzBhZWQ5ZjgyMTVkZjMzMzg0N2FkNGE2MzllOWIyZCJ9fX0="), "&f小茅台", "&8特级酒", "&7正宗贵州茅台", "&7（试用装）", "", "&7▷▷ &b酒精度: &e200", "&7▷▷ &d精神值: &e90", "&7▷▷ &a饱食度: &e10"), "SMALL_MAOTAI", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjI5MGY2YjZkN2NkN2NkYTIzNjhjZTNmMzk3YTUxNDVjMzBhZWQ5ZjgyMTVkZjMzMzg0N2FkNGE2MzllOWIyZCJ9fX0="), "&f小茅台", "&8特级酒", "&7正宗贵州茅台", "&7（试用装）", "", "&7▷▷ &b酒精度: &e200", "&7▷▷ &d精神值: &e90", "&7▷▷ &a饱食度: &e10"), "SMALL_MAOTAI", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("WHITE_WINE"), getItem("PEANUT"), null, null, null, null, null, null}, 10, 90.0F, 200, new PotionEffect[]{new PotionEffect(PotionEffectType.NIGHT_VISION, 1000, 5)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZDkzYTYzMDExZmVkYWNkZjdiMzA0ZDI1ZmU1ZDhmNTdiMThkNWRmZWEzM2I4YmUxYjkyNDY4ODk2NWE4NTE4NSJ9fX0="), "&b天之蓝", "&8特级酒", "&7口感绵柔，包装精美", "&7适合送给亲朋好友", "", "&7▷▷ &b酒精度: &e160", "&7▷▷ &d精神值: &e60", "&7▷▷ &a饱食度: &e14"), "SKYBLUE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZDkzYTYzMDExZmVkYWNkZjdiMzA0ZDI1ZmU1ZDhmNTdiMThkNWRmZWEzM2I4YmUxYjkyNDY4ODk2NWE4NTE4NSJ9fX0="), "&b天之蓝", "&8特级酒", "&7口感绵柔，包装精美", "&7适合送给亲朋好友", "", "&7▷▷ &b酒精度: &e160", "&7▷▷ &d精神值: &e60", "&7▷▷ &a饱食度: &e14"), "SKYBLUE_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("WHITE_WINE"), getItem("ORGANIC_FOOD_POTATO"), null, null, null, null, null, null}, 14, 60.0F, 160, new PotionEffect[]{new PotionEffect(PotionEffectType.DOLPHINS_GRACE, 1000, 3)
         })).register(ExoticGarden.instance);
 
-        (new CustomWine(drinksItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWM3ZTRlMjRkOTQ0ZTViN2I4NzYzMWNiMjgwMDdlODk0NjQyNTkxZDFjMTg3ZGQ4YWE0ZDAzYmNiZDE1ODY2ZiJ9fX0="), "&f工业乙醇", "&8特级酒", "&7酒精含量极高", "&7看上去不像是能喝的", "", "&7▷▷ &b酒精度: &e2000", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e1"), "INDUSTRIAL_ALCOHOL_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(drinksItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWM3ZTRlMjRkOTQ0ZTViN2I4NzYzMWNiMjgwMDdlODk0NjQyNTkxZDFjMTg3ZGQ4YWE0ZDAzYmNiZDE1ODY2ZiJ9fX0="), "&f工业乙醇", "&8特级酒", "&7酒精含量极高", "&7看上去不像是能喝的", "", "&7▷▷ &b酒精度: &e2000", "&7▷▷ &d精神值: &e1", "&7▷▷ &a饱食度: &e1"), "INDUSTRIAL_ALCOHOL_WINE", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("DREAMER_WINE"), getItem("CORN"), null, null, null, null, null, null}, 1, 1.0F, 2000, new PotionEffect[]{new PotionEffect(PotionEffectType.DARKNESS, 8000, 10)
         })).register(ExoticGarden.instance);
-        (new CustomWine(miscItemGroup, new CustomItemStack(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTk5MGQyNDNiNzNjM2U4NTc1ODQ0Mzk2MDc3MTJhNjk4ZDk5OTcyMDkyODY4OTFhMDEyMGVkZTQ4YjMxZmUxZCJ9fX0="), "&c理智药", new String[]{"&8解酒药", "&7服用之后瞬间清醒", "&7解酒的最佳选择", "", "&7▷▷ &b酒精度: &e-5000", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e1"}), "SANITY_DRUG", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4,
+        (new CustomWine(miscItemGroup, CustomItemStack.create(getSkull(Material.POTION, "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTk5MGQyNDNiNzNjM2U4NTc1ODQ0Mzk2MDc3MTJhNjk4ZDk5OTcyMDkyODY4OTFhMDEyMGVkZTQ4YjMxZmUxZCJ9fX0="), "&c理智药", new String[]{"&8解酒药", "&7服用之后瞬间清醒", "&7解酒的最佳选择", "", "&7▷▷ &b酒精度: &e-5000", "&7▷▷ &d精神值: &e100", "&7▷▷ &a饱食度: &e1"}), "SANITY_DRUG", ExoticGardenRecipeTypes.ElectricityBrewing_3, new ItemStack[]{ExoticItems.Yeast_4.item(),
 
                 getItem("MEDICINE"), getItem("GOOSEBERRY"), null, null, null, null, null, null}, 1, 100.0F, -5000, new PotionEffect[]{new PotionEffect(PotionEffectType.REGENERATION, 500, 2)
         })).register(ExoticGarden.instance);
@@ -1297,9 +1282,9 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         SlimefunItemStack sapling = new SlimefunItemStack(id + "_SAPLING", Material.OAK_SAPLING, color + name + "树苗");
 
-        items.put(id + "_SAPLING", sapling);
+        items.put(id + "_SAPLING", sapling.item());
 
-        new BonemealableItem(mainItemGroup, sapling, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.GRASS), null, null, null, null}).register(this);
+        new BonemealableItem(mainItemGroup, sapling, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.SHORT_GRASS), null, null, null, null}).register(this);
 
         new ExoticGardenFruit(mainItemGroup, new SlimefunItemStack(id, texture, color + name), ExoticGardenRecipeTypes.HARVEST_TREE, true, new ItemStack[]{null, null, null, null, getItem(id + "_SAPLING"), null, null, null, null}).register(this);
 
@@ -1308,7 +1293,7 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         }
 
         if (pie) {
-            new CustomFood(foodItemGroup, new SlimefunItemStack(id + "_PIE", "3418c6b0a29fc1fe791c89774d828ff63d2a9fa6c83373ef3aa47bf3eb79", color + name + "派", "", "&7&o恢复 &b&o" + "6.5" + " &7&o点饥饿值"), new ItemStack[]{getItem(id), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), new ItemStack(Material.MILK_BUCKET), SlimefunItems.WHEAT_FLOUR, null, null, null, null}, 13).register(this);
+            new CustomFood(foodItemGroup, new SlimefunItemStack(id + "_PIE", "3418c6b0a29fc1fe791c89774d828ff63d2a9fa6c83373ef3aa47bf3eb79", color + name + "派", "", "&7&o恢复 &b&o" + "6.5" + " &7&o点饥饿值"), new ItemStack[]{getItem(id), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), new ItemStack(Material.MILK_BUCKET), SlimefunItems.WHEAT_FLOUR.item(), null, null, null, null}, 13).register(this);
         }
 
         if (!new File(schematicsFolder, id + "_TREE.schematic").exists()) {
@@ -1338,11 +1323,11 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         (new SlimefunItem(mainItemGroup, new SlimefunItemStack(name.toUpperCase().replace(" ", "_") + "_BUSH", Material.OAK_SAPLING, color + rawName + "苗"), ExoticGardenRecipeTypes.SEED_ANALYZER, new ItemStack[]{null, null, null, null, getItem("MYSTIC_SEED"), null, null, null, null})).register(instance);
 
-        (new EGPlant(mainItemGroup, new CustomItemStack(getSkull(material, data), color + rawName), name.toUpperCase().replace(" ", "_"), ExoticGardenRecipeTypes.HARVEST_PLANT, true, new ItemStack[]{null, null, null, null,
+        (new EGPlant(mainItemGroup, CustomItemStack.create(getSkull(material, data), color + rawName), name.toUpperCase().replace(" ", "_"), ExoticGardenRecipeTypes.HARVEST_PLANT, true, new ItemStack[]{null, null, null, null,
                 getItem(name.toUpperCase().replace(" ", "_") + "_BUSH"), null, null, null, null
         })).register(instance);
 
-        new CustomFood(foodItemGroup, new SlimefunItemStack(name.toUpperCase().replace(" ", "_") + "_PIE", "3418c6b0a29fc1fe791c89774d828ff63d2a9fa6c83373ef3aa47bf3eb79", color + rawName + "派", "", "&7&o恢复 &b&o" + "6.5" + " &7&o点饥饿值"), new ItemStack[]{getItem(name.toUpperCase().replace(" ", "_")), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), new ItemStack(Material.MILK_BUCKET), SlimefunItems.WHEAT_FLOUR, null, null, null, null}, 13).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(name.toUpperCase().replace(" ", "_") + "_PIE", "3418c6b0a29fc1fe791c89774d828ff63d2a9fa6c83373ef3aa47bf3eb79", color + rawName + "派", "", "&7&o恢复 &b&o" + "6.5" + " &7&o点饥饿值"), new ItemStack[]{getItem(name.toUpperCase().replace(" ", "_")), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), new ItemStack(Material.MILK_BUCKET), SlimefunItems.WHEAT_FLOUR.item(), null, null, null, null}, 13).register(this);
     }
 
     private ItemStack getSkull(Material material, String texture) {
@@ -1533,10 +1518,10 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         SlimefunItemStack sfi = new SlimefunItemStack(upperCase + "_BUSH", Material.OAK_SAPLING, color + name + "灌木丛");
 
-        items.put(upperCase + "_BUSH", sfi);
+        items.put(upperCase + "_BUSH", sfi.item());
 
 
-        new BonemealableItem(mainItemGroup, sfi, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.GRASS), null, null, null, null}).register(this);
+        new BonemealableItem(mainItemGroup, sfi, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.SHORT_GRASS), null, null, null, null}).register(this);
 
         new ExoticGardenFruit(mainItemGroup, new SlimefunItemStack(upperCase, texture, color + name), ExoticGardenRecipeTypes.HARVEST_BUSH, true, new ItemStack[]{null, null, null, null, getItem(upperCase + "_BUSH"), null, null, null, null}).register(this);
 
@@ -1548,13 +1533,13 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_JELLY_SANDWICH", "8c8a939093ab1cde6677faf7481f311e5f17f63d58825f0e0c174631fb0439", color + name + "果酱三明治", "", "&7&o恢复 &b&o" + "8.0" + " &7&o点饥饿值"), new ItemStack[]{null, new ItemStack(Material.BREAD), null, null, getItem(upperCase + "_JUICE"), null, null, new ItemStack(Material.BREAD), null}, 16).register(this);
 
-        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_PIE", "3418c6b0a29fc1fe791c89774d828ff63d2a9fa6c83373ef3aa47bf3eb79", color + name + "派", "", "&7&o恢复 &b&o" + "6.5" + " &7&o点饥饿值"), new ItemStack[]{getItem(upperCase), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), new ItemStack(Material.MILK_BUCKET), SlimefunItems.WHEAT_FLOUR, null, null, null, null}, 13).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_PIE", "3418c6b0a29fc1fe791c89774d828ff63d2a9fa6c83373ef3aa47bf3eb79", color + name + "派", "", "&7&o恢复 &b&o" + "6.5" + " &7&o点饥饿值"), new ItemStack[]{getItem(upperCase), new ItemStack(Material.EGG), new ItemStack(Material.SUGAR), new ItemStack(Material.MILK_BUCKET), SlimefunItems.WHEAT_FLOUR.item(), null, null, null, null}, 13).register(this);
 
-        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_EXSALAD", "1fe92e11a67b56935446a214caa3723d29e6db56c55fa8d43179a8a3176c6c1", color + name + "沙拉", "", "&7&o恢复 &b&o" + "5.0" + " &7&o点饥饿值"), new ItemStack[]{getItem(upperCase), new ItemStack(Material.OAK_LEAVES), new ItemStack(Material.SUGAR), new ItemStack(Material.BEETROOT), SlimefunItems.SALT, null, null, null, null}, 10).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_EXSALAD", "1fe92e11a67b56935446a214caa3723d29e6db56c55fa8d43179a8a3176c6c1", color + name + "沙拉", "", "&7&o恢复 &b&o" + "5.0" + " &7&o点饥饿值"), new ItemStack[]{getItem(upperCase), new ItemStack(Material.OAK_LEAVES), new ItemStack(Material.SUGAR), new ItemStack(Material.BEETROOT), SlimefunItems.SALT.item(), null, null, null, null}, 10).register(this);
 
-        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_CHEESE_BURGER", "268efa56ef3136e53a9bf430ef76d50153fbbcc1295e64b347f53e10e557f07a", color + name + "芝士汉堡", "", "&7&o恢复 &b&o" + "7.0" + " &7&o点饥饿值"), new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.KELP), getItem(upperCase), new ItemStack(Material.BEETROOT), SlimefunItems.CHEESE, null, null, null, null}, 14).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_CHEESE_BURGER", "268efa56ef3136e53a9bf430ef76d50153fbbcc1295e64b347f53e10e557f07a", color + name + "芝士汉堡", "", "&7&o恢复 &b&o" + "7.0" + " &7&o点饥饿值"), new ItemStack[]{new ItemStack(Material.BREAD), new ItemStack(Material.KELP), getItem(upperCase), new ItemStack(Material.BEETROOT), SlimefunItems.CHEESE.item(), null, null, null, null}, 14).register(this);
 
-        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_PIZZA_GRANDE", "783de92d490b914395744af1b6ea5c4ce8965dd40c3edecf10da578c423b66c6", color + name + "披萨", "", "&7&o恢复 &b&o" + "7.0" + " &7&o点饥饿值"), new ItemStack[]{ SlimefunItems.WHEAT_FLOUR,  SlimefunItems.SALT, getItem(upperCase), new ItemStack(Material.BEETROOT), SlimefunItems.CHEESE, new ItemStack(Material.POTATO), null, null, null}, 14).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_PIZZA_GRANDE", "783de92d490b914395744af1b6ea5c4ce8965dd40c3edecf10da578c423b66c6", color + name + "披萨", "", "&7&o恢复 &b&o" + "7.0" + " &7&o点饥饿值"), new ItemStack[]{ SlimefunItems.WHEAT_FLOUR.item(),  SlimefunItems.SALT.item(), getItem(upperCase), new ItemStack(Material.BEETROOT), SlimefunItems.CHEESE.item(), new ItemStack(Material.POTATO), null, null, null}, 14).register(this);
     }
 
     public void registerPlant(String id, String name, ChatColor color, PlantType type, String texture) {
@@ -1565,14 +1550,14 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         berries.add(berry);
 
         SlimefunItemStack bush = new SlimefunItemStack(enumStyle + "_BUSH", Material.OAK_SAPLING, color + name + "植物");
-        items.put(upperCase + "_BUSH", bush);
+        items.put(upperCase + "_BUSH", bush.item());
 
-        new BonemealableItem(mainItemGroup, bush, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.GRASS), null, null, null, null})
+        new BonemealableItem(mainItemGroup, bush, ExoticGardenRecipeTypes.BREAKING_GRASS, new ItemStack[]{null, null, null, null, new ItemStack(Material.SHORT_GRASS), null, null, null, null})
                 .register(this);
 
         new ExoticGardenFruit(mainItemGroup, new SlimefunItemStack(enumStyle, texture, color + name), ExoticGardenRecipeTypes.HARVEST_BUSH, true, new ItemStack[]{null, null, null, null, getItem(enumStyle + "_BUSH"), null, null, null, null}).register(this);
-        new CustomFood(foodItemGroup, new SlimefunItemStack(enumStyle + "_EXSALAD", "1fe92e11a67b56935446a214caa3723d29e6db56c55fa8d43179a8a3176c6c1", color + name + "沙拉", "", "&7&o恢复 &b&o" + "5.0" + " &7&o点饥饿值"), new ItemStack[]{getItem(enumStyle), new ItemStack(Material.OAK_LEAVES), new ItemStack(Material.SUGAR), new ItemStack(Material.POTATO), SlimefunItems.SALT, null, null, null, null}, 10).register(this);
-        new CustomFood(foodItemGroup, new SlimefunItemStack(enumStyle + "_PIZZA_GRANDE", "783de92d490b914395744af1b6ea5c4ce8965dd40c3edecf10da578c423b66c6", color + name + "披萨", "", "&7&o恢复 &b&o" + "7.0" + " &7&o点饥饿值"), new ItemStack[]{ SlimefunItems.WHEAT_FLOUR,  SlimefunItems.SALT, getItem(enumStyle), new ItemStack(Material.BEETROOT), SlimefunItems.CHEESE, new ItemStack(Material.POTATO), null, null, null}, 14).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(enumStyle + "_EXSALAD", "1fe92e11a67b56935446a214caa3723d29e6db56c55fa8d43179a8a3176c6c1", color + name + "沙拉", "", "&7&o恢复 &b&o" + "5.0" + " &7&o点饥饿值"), new ItemStack[]{getItem(enumStyle), new ItemStack(Material.OAK_LEAVES), new ItemStack(Material.SUGAR), new ItemStack(Material.POTATO), SlimefunItems.SALT.item(), null, null, null, null}, 10).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(enumStyle + "_PIZZA_GRANDE", "783de92d490b914395744af1b6ea5c4ce8965dd40c3edecf10da578c423b66c6", color + name + "披萨", "", "&7&o恢复 &b&o" + "7.0" + " &7&o点饥饿值"), new ItemStack[]{ SlimefunItems.WHEAT_FLOUR.item(),  SlimefunItems.SALT.item(), getItem(enumStyle), new ItemStack(Material.BEETROOT), SlimefunItems.CHEESE.item(), new ItemStack(Material.POTATO), null, null, null}, 14).register(this);
     }
 
     private void registerMagicalPlant(String id, String name, ItemStack item, String texture, ItemStack[] recipe) {
@@ -1581,7 +1566,7 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         SlimefunItemStack essence = new SlimefunItemStack(enumStyle + "_ESSENCE", Material.BLAZE_POWDER, "&r魔法精华", "", "&7" + name);
 
-        Berry berry = new Berry(essence, upperCase + "_ESSENCE", PlantType.ORE_PLANT, texture);
+        Berry berry = new Berry(essence.item(), upperCase + "_ESSENCE", PlantType.ORE_PLANT, texture);
         berries.add(berry);
 
         new BonemealableItem(magicalItemGroup, new SlimefunItemStack(enumStyle + "_PLANT", Material.OAK_SAPLING, "&f" + name + "植物"), RecipeType.ENHANCED_CRAFTING_TABLE, recipe)
@@ -1591,19 +1576,19 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         magicalEssence.setRecipeOutput(item.clone());
         magicalEssence.register(this);
-        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_SNACK", "f22743a662107366e15308b02f8035028d452fcac76968f6d7ee6d7c8f2573ec", name + "奇趣零食", "", "&7&o恢复 &b&o" + "5.0" + " &7&o点饥饿值"), new ItemStack[]{getItem(enumStyle + "_ESSENCE"), getItem("BLACK_PEPPER"),  SlimefunItems.SALT, new ItemStack(Material.POTATO), new ItemStack(Material.BROWN_MUSHROOM), null, null, null, null}, 10).register(this);
+        new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_SNACK", "f22743a662107366e15308b02f8035028d452fcac76968f6d7ee6d7c8f2573ec", name + "奇趣零食", "", "&7&o恢复 &b&o" + "5.0" + " &7&o点饥饿值"), new ItemStack[]{getItem(enumStyle + "_ESSENCE"), getItem("BLACK_PEPPER"),  SlimefunItems.SALT.item(), new ItemStack(Material.POTATO), new ItemStack(Material.BROWN_MUSHROOM), null, null, null, null}, 10).register(this);
     }
 
     public void harvestFruit(Block fruit) {
         Location loc = fruit.getLocation();
-        SlimefunItem check = StorageCacheUtils.getSfItem(loc);
+        SlimefunItem check = BlockStorage.check(loc);
 
         if (check == null) {
             return;
         }
 
         if (treeFruits.contains(check.getId())) {
-            Slimefun.getDatabaseManager().getBlockDataController().removeBlock(loc);
+            BlockStorage.clearBlockInfo(loc);
             ItemStack fruits = check.getItem().clone();
             fruit.getWorld().playEffect(loc, Effect.STEP_SOUND, Material.OAK_LEAVES);
             fruit.getWorld().dropItemNaturally(loc, fruits);

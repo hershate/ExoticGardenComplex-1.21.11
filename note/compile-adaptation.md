@@ -101,3 +101,34 @@ REF 官方 BlockStorage 已确认存在的公开方法：`store` / `retrieve` / 
 5. `ChargeableBlock.java`：重构 xzavier 存储读写为官方 BlockStorage（改动最大）。
 6. `schematics/Schematic.java`：重构 BlockDataController 异步 paste 为 REF 机制。
 7. 全量 `mvn clean package` 验证编译通过。
+
+---
+
+## 8. 执行结果（2026-07-30 完成）✅
+
+附属已成功基于 REF（`com.github.slimefun:Slimefun:4.9.5`）编译通过，产物 `target/ExoticGarden vUNOFFICIAL.jar`。
+REF 经 `mvn install -DskipTests` 装入本地 `~/.m2`（含 shaded dough/paperlib/commons-lang）。
+
+实际完成的迁移（20 个文件，369 增 484 删）：
+
+1. **pom.xml**：Slimefun 依赖 `SlimefunGuguProject` → `com.github.slimefun:Slimefun:4.9.5`；移除 `GuizhanLibPlugin`、`FluffyMachines`；`spigot-api 1.19.2` → `paper-api 1.21.1`；仓库加 papermc/codemc。
+2. **plugin.yml**：`depend` 仅留 `Slimefun`；`softdepend` 去掉 `FluffyMachines`。
+3. **CustomItemStack 构造 → 静态工厂**（179 处）：`new CustomItemStack(...)` → `CustomItemStack.create(...)`（dough 重构为 `final` 类，无构造器）。
+4. **SlimefunItemStack → `.item()`**：`SlimefunItems.X`（192 处）、`ExoticItems` 常量、各处 SFIS 变量在作 ItemStack 使用时统一加 `.item()`（REF 中 `SlimefunItemStack` 不再 `extends ItemStack`，改为委托模式，需 `.item()` 取 `ItemStack`）。
+5. **xzavier 存储 → 官方 BlockStorage**：`StorageCacheUtils.getSfItem/hasBlock/getData/setData` → `BlockStorage.check/hasBlockInfo/getLocationInfo/addBlockInfo`；`getDatabaseManager().getBlockDataController().removeBlock` → `clearBlockInfo`；`Schematic.createBlock` → `BlockStorage.store`。`ChargeableBlock` 重构为纯 `EnergyNetComponent` 委托（移除 Location 重载与 max_charges/capacitors）。
+6. **移除 GuizhanLibPlugin**：删除 `GuizhanUpdater` import/调用/启动校验（自动更新功能移除，依用户决策）。
+7. **FluffyMachines 浇水壶**：去掉 `FluffyItems` API 引用，改用 SF ID 字面量 `"WATERING_CAN"` 比对（保留功能，编译不依赖 FluffyMachines，运行时装了仍可浇水）。
+8. **paper-api 1.19 → 1.21 适配**：`Material.GRASS` → `Material.SHORT_GRASS`（11 处）；`Particle.VILLAGER_ANGRY/HAPPY` → `ANGRY_VILLAGER/HAPPY_VILLAGER`。
+9. **其他逐处适配**：`new SlimefunItemStack(sfis, int)` 复制构造 → `CustomItemStack.create(sfis.item(), int)`；`MagicalEssence` recipe、`CustomFood` recipeOutput、`Berry` 构造、`YeastCulturer`/`ElectricityBrewing` recipe、`ExoticItems` 机器注册行第二参等。
+
+构建命令：
+```bash
+# 1. 先安装 REF 到本地仓库（一次性）
+cd REF/Slimefun4.1 && mvn clean install -DskipTests
+# 2. 编译附属
+cd ../.. && mvn clean package -DskipTests   # → target/ExoticGarden vUNOFFICIAL.jar
+```
+
+> 说明：Maven 已下载至 `~/apache-maven-3.9.16`（系统原无 Maven），`~/maven-settings.xml` 配阿里云 central 镜像。JAVA_HOME 指向 `C:\Program Files\Java\latest\jdk-21`。
+> 注意：本次仅保证源码层编译通过（判据：BUILD SUCCESS）。实机运行（1.21.11 服务器）未做回归，部分 API 语义变化（如 SlimefunItemStack 委托、BlockStorage 同步 store）可能需上服观察。
+

@@ -34,7 +34,7 @@ public class FoodListener implements Listener {
 
         switch (hand) {
             case HAND:
-                item = SlimefunItem.getByItem(new CustomItemStack(e.getPlayer().getInventory().getItemInMainHand(), 1));
+                item = SlimefunItem.getByItem(CustomItemStack.create(e.getPlayer().getInventory().getItemInMainHand(), 1));
                 if (item instanceof EGPlant && (
                         (EGPlant) item).isEdible()) {
                     ((EGPlant) item).restoreHunger(e.getPlayer());
@@ -49,7 +49,7 @@ public class FoodListener implements Listener {
 
 
             case OFF_HAND:
-                item = SlimefunItem.getByItem(new CustomItemStack(e.getPlayer().getInventory().getItemInOffHand(), 1));
+                item = SlimefunItem.getByItem(CustomItemStack.create(e.getPlayer().getInventory().getItemInOffHand(), 1));
                 if (item instanceof EGPlant && (
                         (EGPlant) item).isEdible()) {
                     ((EGPlant) item).restoreHunger(e.getPlayer());

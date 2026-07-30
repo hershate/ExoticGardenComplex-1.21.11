@@ -223,24 +223,24 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
 
     private void constructMenu(BlockMenuPreset preset) {
         for (int i : border) {
-            preset.addItem(i, new CustomItemStack(Material.BLACK_STAINED_GLASS_PANE, " "), (player, i1, itemStack, clickAction) -> false);
+            preset.addItem(i, CustomItemStack.create(Material.BLACK_STAINED_GLASS_PANE, " "), (player, i1, itemStack, clickAction) -> false);
         }
         for (int i : inputBorder) {
-            preset.addItem(i, new CustomItemStack(Material.WHITE_STAINED_GLASS_PANE, " "), (player, i2, itemStack, clickAction) -> false);
+            preset.addItem(i, CustomItemStack.create(Material.WHITE_STAINED_GLASS_PANE, " "), (player, i2, itemStack, clickAction) -> false);
         }
         for (int i : centerBorder) {
-            preset.addItem(i, new CustomItemStack(Material.BROWN_STAINED_GLASS_PANE, " "), (player, i4, itemStack, clickAction) -> false);
+            preset.addItem(i, CustomItemStack.create(Material.BROWN_STAINED_GLASS_PANE, " "), (player, i4, itemStack, clickAction) -> false);
         }
         for (int i : outputBorder) {
-            preset.addItem(i, new CustomItemStack(Material.GREEN_STAINED_GLASS_PANE, " "), (player, i3, itemStack, clickAction) -> false);
+            preset.addItem(i, CustomItemStack.create(Material.GREEN_STAINED_GLASS_PANE, " "), (player, i3, itemStack, clickAction) -> false);
         }
         for (int i : subSlotSign) {
-            preset.addItem(i, new CustomItemStack(Material.RED_STAINED_GLASS_PANE, "&e副输出槽", "", "&7副输出槽通常会输出机器的副产物", "&7有些副产物极其有用甚至非常珍贵"), (player, i6, itemStack, clickAction) -> false);
+            preset.addItem(i, CustomItemStack.create(Material.RED_STAINED_GLASS_PANE, "&e副输出槽", "", "&7副输出槽通常会输出机器的副产物", "&7有些副产物极其有用甚至非常珍贵"), (player, i6, itemStack, clickAction) -> false);
         }
         for (int i : mainSlotSign) {
-            preset.addItem(i, new CustomItemStack(Material.RED_STAINED_GLASS_PANE, "&c主输出槽", "", "&7主输出槽输出机器的常规产品"), (player, i5, itemStack, clickAction) -> false);
+            preset.addItem(i, CustomItemStack.create(Material.RED_STAINED_GLASS_PANE, "&c主输出槽", "", "&7主输出槽输出机器的常规产品"), (player, i5, itemStack, clickAction) -> false);
         }
-        preset.addItem(31, new CustomItemStack(Material.PINK_STAINED_GLASS_PANE, " "), (player, i, itemStack, clickAction) -> false);
+        preset.addItem(31, CustomItemStack.create(Material.PINK_STAINED_GLASS_PANE, " "), (player, i, itemStack, clickAction) -> false);
 
         preset.addItem(38, null, new ChestMenu.AdvancedMenuClickHandler() {
             public boolean onClick(Player player, int i, ItemStack item, ClickAction action) {
@@ -292,7 +292,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
         int size = BlockStorage.getInventory(b).toInventory().getSize();
         Inventory inv = Bukkit.createInventory(null, size);
         for (int i = 0; i < size; i++) {
-            inv.setItem(i, new CustomItemStack(Material.COMMAND_BLOCK, " &4ALL YOUR PLACEHOLDERS ARE BELONG TO US"));
+            inv.setItem(i, CustomItemStack.create(Material.COMMAND_BLOCK, " &4ALL YOUR PLACEHOLDERS ARE BELONG TO US"));
         }
         for (int slot : getOutputMainSlots()) {
             inv.setItem(slot, BlockStorage.getInventory(b).getItemInSlot(slot));
@@ -319,7 +319,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
         int size = BlockStorage.getInventory(b).toInventory().getSize();
         Inventory inv = Bukkit.createInventory(null, size);
         for (int i = 0; i < size; i++) {
-            inv.setItem(i, new CustomItemStack(Material.COMMAND_BLOCK, " &4ALL YOUR PLACEHOLDERS ARE BELONG TO US"));
+            inv.setItem(i, CustomItemStack.create(Material.COMMAND_BLOCK, " &4ALL YOUR PLACEHOLDERS ARE BELONG TO US"));
         }
         for (int slot : getOutputSubSlots()) {
             inv.setItem(slot, BlockStorage.getInventory(b).getItemInSlot(slot));
@@ -380,7 +380,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
 
             } else {
 
-                BlockStorage.getInventory(b).replaceExistingItem(31, new CustomItemStack(Material.BLACK_STAINED_GLASS_PANE, " "));
+                BlockStorage.getInventory(b).replaceExistingItem(31, CustomItemStack.create(Material.BLACK_STAINED_GLASS_PANE, " "));
                 pushMainItems(b, processing.get(b).getOutput());
                 pushSubItems(b, selectSubItem(getSubRecipes()));
                 progress.remove(b);
