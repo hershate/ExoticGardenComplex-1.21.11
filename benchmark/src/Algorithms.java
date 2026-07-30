@@ -388,4 +388,139 @@ public final class Algorithms {
         }
         return true;
     }
+
+    // =============================================================
+    // 机器 tick 处理分支：进度条显示构建
+    //   旧 = 每 tick 总是克隆基座 + 改写 meta（getProgress/getTimeLeft 的 StringBuilder/translate）
+    //        + replaceExistingItem（读槽 + markDirty）；无人查看时也照做（当前生产）。
+    //   新 = 先 hasViewer()；无人查看则整段跳过（仅一次布尔判定），有人查看才构建。
+    //   能量消耗 / 进度递减与显示无关，不在本段建模（两版完全一致）。
+    // =============================================================
+
+    /** 进度条基座耐久（建模 item.getType().getMaxDurability()，固定值即可）。 */
+    private static final int PROGRESS_BAR_MAX_DUR = 1561;
+    private static final String COLOR_CODES = "0123456789AaBbCcDdEeFfKkLlMmNnOoRr";
+
+    /** 忠实移植 MachineHelper.getDurability（廉价算术）。 */
+    static short portGetDurability(int timeLeft, int totalTime) {
+        if (PROGRESS_BAR_MAX_DUR == 0) {
+            return 0;
+        }
+        return (short) (PROGRESS_BAR_MAX_DUR * (1 - (double) timeLeft / totalTime));
+    }
+
+    /** 忠实移植 MachineHelper.getTimeLeft（字符串拼接 + translateAlternateColorCodes 分配）。 */
+    static String portGetTimeLeft(int seconds) {
+        String timeleft = "";
+        int minutes = (int) (seconds / 60L);
+        if (minutes > 0) {
+            timeleft = timeleft + minutes + "m ";
+        }
+        seconds -= minutes * 60;
+        timeleft = timeleft + seconds + "s";
+        return translateAlternateColorCodes('&', "&7" + timeleft + " left");
+    }
+
+    /** 忠实移植 MachineHelper.getProgress（StringBuilder + ":".repeat + translate 分配）。 */
+    static String portGetProgress(int time, int total) {
+        StringBuilder progress = new StringBuilder();
+        float percentage = Math.round(((((total - time) * 100.0F) / total) * 100.0F) / 100.0F);
+        if (percentage < 16.0F) progress.append("&4");
+        else if (percentage < 32.0F) progress.append("&c");
+        else if (percentage < 48.0F) progress.append("&6");
+        else if (percentage < 64.0F) progress.append("&e");
+        else if (percentage < 80.0F) progress.append("&2");
+        else progress = progress.append("&a");
+        int rest = 20;
+        for (int i = (int) percentage; i >= 5; i = i - 5) {
+            progress.append(":");
+            rest--;
+        }
+        progress.append("&7");
+        progress.append(":".repeat(Math.max(0, rest)));
+        progress.append(" - ").append(percentage).append("%");
+        return translateAlternateColorCodes('&', progress.toString());
+    }
+
+    /** 忠实移植 ChatColor.translateAlternateColorCodes（char[] 扫描 + 新 String 分配）。 */
+    private static String translateAlternateColorCodes(char alt, String input) {
+        char[] b = input.toCharArray();
+        for (int i = 0; i < b.length - 1; i++) {
+            if (b[i] == alt && COLOR_CODES.indexOf(b[i + 1]) > -1) {
+                b[i] = '§';
+                b[i + 1] = Character.toLowerCase(b[i + 1]);
+            }
+        }
+        return new String(b);
+    }
+
+    /**
+     * 构建进度条显示并写入菜单槽 31（生产中 menu.replaceExistingItem(31, item)）。
+     * 复刻：clone 基座、setDurability、getItemMeta/setDisplayName、new ArrayList(3)+3 add、
+     * setLore、setItemMeta、replaceExistingItem（读槽 + markDirty）。
+     * 返回构建出的物品供基准 sink（防止 JIT 把字符串分配当作死存储消除）。
+     */
+    private static SimItem buildProgressBar(SimMenu menu, SimItem base, int timeleft, int total) {
+        SimItem item = base.clone();                     // progressBar().clone()
+        portGetDurability(timeleft, total);              // item.setDurability(...)
+        item.displayName = " ";                          // im.setDisplayName(" ")
+        String[] lore = new String[3];                   // new ArrayList<>(3)
+        lore[0] = portGetProgress(timeleft, total);
+        lore[1] = "";
+        lore[2] = portGetTimeLeft(timeleft / 2);
+        item.lore = lore;                                // im.setLore(lore); item.setItemMeta(im);
+        menu.replaceExistingItem(31, item);              // menu.replaceExistingItem(31, item)
+        return item;
+    }
+
+    /** 旧：每 tick 总是重建进度条（当前生产）。 */
+    static SimItem oldTickDisplay(SimMenu menu, SimItem base, int timeleft, int total) {
+        return buildProgressBar(menu, base, timeleft, total);
+    }
+
+    /** 新：仅当 hasViewer() 为真才重建并返回该物品；否则跳过整段显示工作，返回 null。 */
+    static SimItem newTickDisplay(SimMenu menu, SimItem base, int timeleft, int total) {
+        if (menu.hasViewer()) {
+            return buildProgressBar(menu, base, timeleft, total);
+        }
+        return null;
+    }
+
+    // =============================================================
+    // BlockStorage.check 的查找路径建模
+    //   生产 BlockStorage.check(b)：定位区块 → 读方块存储 id（字符串）→ SlimefunItem.getById(id)
+    //   （多次 Map 查找 + 字符串解析；本 sim 用两级 HashMap 保守建模，真实开销只高不低）。
+    //   新：按方块缓存 SF 物品，命中则一次 get。
+    // =============================================================
+    static final class BlockStorageSim {
+        final HashMap<Long, Integer> blockToId = new HashMap<>();   // 方块键 → sfId
+        final HashMap<Integer, Integer> idToItem = new HashMap<>(); // sfId → SF 物品（建模为同一 int）
+
+        void put(long blockKey, int sfId) {
+            blockToId.put(blockKey, sfId);
+            idToItem.put(sfId, sfId);
+        }
+    }
+
+    /** 模拟 BlockStorage.check(b)：方块键 → id → SF 物品（两次 HashMap 查找）。 */
+    static Integer checkSim(BlockStorageSim bs, long blockKey) {
+        Integer id = bs.blockToId.get(blockKey);     // getLocationInfo → id
+        if (id == null) {
+            return null;
+        }
+        return bs.idToItem.get(id);                  // SlimefunItem.getById(id)
+    }
+
+    /** 新：按方块缓存 SF 物品（仅缓存非 null），命中则一次 get。 */
+    static Integer cachedResolve(BlockStorageSim bs, HashMap<Long, Integer> cache, long blockKey) {
+        Integer cached = cache.get(blockKey);
+        if (cached != null) {
+            return cached;
+        }
+        Integer item = checkSim(bs, blockKey);
+        if (item != null) {
+            cache.put(blockKey, item);
+        }
+        return item;
+    }
 }

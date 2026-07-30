@@ -23,6 +23,11 @@ public final class SimItem {
     final int[] meta;     // 4-int 元数据代理
     int amount;
 
+    // 显示元数据代理（displayName + lore），用于建模进度条每次重建时 setItemMeta 的开销。
+    // 进度条基座本无显示数据；build 时克隆基座后再写入（与生产一致）。
+    String displayName;
+    String[] lore;
+
     SimItem(int material, int sfId, int amount) {
         this.material = material;
         this.sfId = sfId;
@@ -76,6 +81,9 @@ public final class SimItem {
         SimItem c = new SimItem(material, sfId, amount);
         // 深拷贝 meta（模拟 Bukkit ItemStack.clone 复制 ItemMeta）
         System.arraycopy(this.meta, 0, c.meta, 0, this.meta.length);
+        // 复制显示元数据（基座一般为 null，克隆后由 build 写入）
+        c.displayName = this.displayName;
+        c.lore = this.lore;
         return c;
     }
 }

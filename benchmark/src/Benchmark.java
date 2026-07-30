@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -148,18 +149,59 @@ public final class Benchmark {
         row("subRecipes·新(缓存)", newSub, oldSub);
         System.out.println();
 
+        // ---------- tick 处理分支：进度条显示构建（每加工机器每 tick） ----------
+        System.out.println("--- tick 处理：进度条显示构建（每机器每 tick）---");
+        SimItem barBase = SimItem.of(7, 501, 1); // 进度条基座（IRON_PICKAXE 代理）
+        final int TIMELEFT = 53;
+        final int TOTAL = 80;
+        // 旧：每 tick 总是 clone+meta+StringBuilder+replace（当前生产，无论是否有人看）
+        SimMenu menuOld = new SimMenu();
+        double oldDisplay = benchNs(() -> sink(Algorithms.oldTickDisplay(menuOld, barBase, TIMELEFT, TOTAL)), warmup, iters);
+        // 新·无人查看（常态）：仅一次 hasViewer() 判定后整段跳过
+        SimMenu menuNoViewer = new SimMenu();
+        double newDisplayIdle = benchNs(() -> sink(Algorithms.newTickDisplay(menuNoViewer, barBase, TIMELEFT, TOTAL)), warmup, iters);
+        // 新·有人查看：与旧相同的构建 + 一次 hasViewer 判定（不得退化）
+        SimMenu menuViewer = new SimMenu();
+        menuViewer.viewer = true;
+        double newDisplayViewer = benchNs(() -> sink(Algorithms.newTickDisplay(menuViewer, barBase, TIMELEFT, TOTAL)), warmup, iters);
+        row("进度条·旧(每tick重建)", oldDisplay, oldDisplay);
+        row("进度条·新(无人查看·常态)", newDisplayIdle, oldDisplay);
+        row("进度条·新(有人查看)", newDisplayViewer, oldDisplay);
+        System.out.println();
+
+        // ---------- SF 物品解析：BlockStorage.check vs 按方块缓存 ----------
+        System.out.println("--- SF 物品解析：BlockStorage.check vs 按方块缓存 ---");
+        BenchSfItem bsf = new BenchSfItem(2000);
+        double oldCheck = benchNs(() -> {
+            for (int i = 0; i < bsf.keys.length; i++) {
+                sink(Algorithms.checkSim(bsf.bs, bsf.keys[i]));
+            }
+        }, 200, 20_000) / bsf.keys.length;
+        double newResolve = benchNs(() -> {
+            for (int i = 0; i < bsf.keys.length; i++) {
+                sink(Algorithms.cachedResolve(bsf.bs, bsf.cache, bsf.keys[i]));
+            }
+        }, 200, 20_000) / bsf.keys.length;
+        row("SFItem·旧(BlockStorage.check)", oldCheck, oldCheck);
+        row("SFItem·新(按方块缓存)", newResolve, oldCheck);
+        System.out.println();
+
         // ---------- 正确性：新旧 match / fits 必须完全等价 ----------
         System.out.println("--- 正确性等价性断言 ---");
         int failMatch = correctnessMatch(threeRecipes, 200_000, new Random(123));
         int failSingle = correctnessMatchSingle(singleRecipes, 100_000, new Random(321));
         int failFits = correctnessFits(200_000, new Random(999));
-        System.out.println("  3输入 match 等价: " + (failMatch == 0 ? "PASS" : ("FAIL(" + failMatch + ")")));
-        System.out.println("  1输入 match 等价: " + (failSingle == 0 ? "PASS" : ("FAIL(" + failSingle + ")")));
-        System.out.println("  fits 等价       : " + (failFits == 0 ? "PASS" : ("FAIL(" + failFits + ")")));
+        int failDisplay = correctnessDisplay(50_000, new Random(7));
+        int failResolve = correctnessResolve(bsf, 100_000, new Random(8));
+        System.out.println("  3输入 match 等价   : " + (failMatch == 0 ? "PASS" : ("FAIL(" + failMatch + ")")));
+        System.out.println("  1输入 match 等价   : " + (failSingle == 0 ? "PASS" : ("FAIL(" + failSingle + ")")));
+        System.out.println("  fits 等价         : " + (failFits == 0 ? "PASS" : ("FAIL(" + failFits + ")")));
+        System.out.println("  进度条门控等价     : " + (failDisplay == 0 ? "PASS" : ("FAIL(" + failDisplay + ")")));
+        System.out.println("  SFItem 缓存等价    : " + (failResolve == 0 ? "PASS" : ("FAIL(" + failResolve + ")")));
         System.out.println();
 
         System.out.println("(checksum=" + blackHole + ")");
-        if (failMatch != 0 || failSingle != 0 || failFits != 0) {
+        if (failMatch != 0 || failSingle != 0 || failFits != 0 || failDisplay != 0 || failResolve != 0) {
             System.exit(1);
         }
     }
@@ -305,6 +347,76 @@ public final class Benchmark {
         return fail;
     }
 
+    /**
+     * 进度条门控等价性：① 有人查看时，新实现必须构建出与旧实现完全一致的显示物；
+     * ② 无人查看时，新实现必须跳过（返回 null）。进度/能量递减不在显示段内（生产代码结构保证），
+     * 故与观看者无关——此点在生产代码中由“门控仅包裹显示语句、能量与 progress 放在门控外”保证。
+     */
+    private static int correctnessDisplay(int steps, Random r) {
+        int fail = 0;
+        SimItem base = SimItem.of(7, 501, 1);
+        SimMenu menuViewer = new SimMenu();
+        menuViewer.viewer = true;
+        SimMenu menuNoViewer = new SimMenu();
+        for (int s = 0; s < steps; s++) {
+            int total = 40 + r.nextInt(80);
+            int timeleft = 1 + r.nextInt(total);
+            SimItem oldItem = Algorithms.oldTickDisplay(menuViewer, base, timeleft, total);
+            SimItem newItem = Algorithms.newTickDisplay(menuViewer, base, timeleft, total);
+            if (!sameDisplay(oldItem, newItem)) {
+                fail++;
+            }
+            SimItem idleItem = Algorithms.newTickDisplay(menuNoViewer, base, timeleft, total);
+            if (idleItem != null) {
+                fail++;
+            }
+        }
+        return fail;
+    }
+
+    /** SFItem 缓存等价性：按方块缓存解析的结果必须与直接 BlockStorage.check 完全一致（含未注册键均返回 null）。 */
+    private static int correctnessResolve(BenchSfItem bsf, int steps, Random r) {
+        int fail = 0;
+        HashMap<Long, Integer> cache = new HashMap<>();
+        for (int s = 0; s < steps; s++) {
+            long key = bsf.keys[r.nextInt(bsf.keys.length)];
+            Integer direct = Algorithms.checkSim(bsf.bs, key);
+            Integer cached = Algorithms.cachedResolve(bsf.bs, cache, key);
+            if (!Objects.equals(direct, cached)) {
+                fail++;
+            }
+        }
+        Integer directMiss = Algorithms.checkSim(bsf.bs, Long.MIN_VALUE);
+        Integer cachedMiss = Algorithms.cachedResolve(bsf.bs, cache, Long.MIN_VALUE);
+        if (directMiss != null || cachedMiss != null) {
+            fail++;
+        }
+        return fail;
+    }
+
+    private static boolean sameDisplay(SimItem a, SimItem b) {
+        if (a == null || b == null) {
+            return a == null && b == null;
+        }
+        if (!Objects.equals(a.displayName, b.displayName)) {
+            return false;
+        }
+        String[] la = a.lore;
+        String[] lb = b.lore;
+        if (la == null || lb == null) {
+            return la == null && lb == null;
+        }
+        if (la.length != lb.length) {
+            return false;
+        }
+        for (int i = 0; i < la.length; i++) {
+            if (!Objects.equals(la[i], lb[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     // ===== berry 查表微基准 =====
     static final class BenchBerry {
         final List<String> ids = new ArrayList<>();
@@ -362,6 +474,25 @@ public final class Benchmark {
 
         List<Integer> cached() {
             return cached;
+        }
+    }
+
+    // ===== SFItem 解析微基准 =====
+    static final class BenchSfItem {
+        final Algorithms.BlockStorageSim bs = new Algorithms.BlockStorageSim();
+        final HashMap<Long, Integer> cache = new HashMap<>();
+        final long[] keys;
+
+        BenchSfItem(int n) {
+            keys = new long[n];
+            for (int i = 0; i < n; i++) {
+                long key = 1_000_000L + i;
+                int sfId = 100 + (i % 40);
+                bs.put(key, sfId);
+                keys[i] = key;
+                // 预热缓存到 warm 态（稳态命中，对应机器方块首次解析后持续命中）
+                cache.put(key, sfId);
+            }
         }
     }
 }
