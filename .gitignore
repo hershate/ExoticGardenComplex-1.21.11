@@ -7,3 +7,5 @@
 target
 dependency-reduced-pom.xml
 /REF
+# 基准测试编译产物（benchmark/run.sh 生成）
+benchmark/out

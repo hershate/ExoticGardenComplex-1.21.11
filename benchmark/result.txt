@@ -1,0 +1,37 @@
+# ExoticGardenComplex 基准结果（UTF-8）
+# 主机 processors: 16
+
+=== ExoticGardenComplex 算法层基准 ===
+JVM: 21.0.12 | processors: 16
+
+--- 配方匹配（3 输入 / 35 配方，每次 = 一个机器一个 tick 的 idle 分支）---
+  不匹配·旧(每tick全扫)                        209.6 ns/op   (1.00x)
+  不匹配·新冷启动                              261.9 ns/op   (0.80x)
+  不匹配·新命中缓存(稳态)                          36.9 ns/op   (5.68x)
+  命中·旧(每tick全扫)                         416.9 ns/op   (1.00x)
+  命中·新命中缓存(稳态)                           39.4 ns/op   (10.58x)
+  空输入·旧                                 291.9 ns/op   (1.00x)
+  空输入·新命中缓存                              11.5 ns/op   (25.49x)
+
+--- 配方匹配（1 输入 / 3 配方）---
+  不匹配·旧(每tick全扫)                         15.0 ns/op   (1.00x)
+  不匹配·新命中缓存(稳态)                           8.6 ns/op   (1.75x)
+
+--- fits（输出槽容量校验，4 槽位）---
+  fits·旧(clone 模拟)                       76.6 ns/op   (1.00x)
+  fits·新(int 金额零 clone)                  26.5 ns/op   (2.89x)
+
+--- 采集：berry 按 id 查表（~60 项）---
+  berry·旧(线性 equalsIgnoreCase)          154.3 ns/op   (1.00x)
+  berry·新(HashMap)                        2.5 ns/op   (61.07x)
+
+--- 副产物 getSubRecipes()：每次重建 vs 缓存（35 项）---
+  subRecipes·旧(每次重建)                    130.3 ns/op   (1.00x)
+  subRecipes·新(缓存)                       27.1 ns/op   (4.81x)
+
+--- 正确性等价性断言 ---
+  3输入 match 等价: PASS
+  1输入 match 等价: PASS
+  fits 等价       : PASS
+
+(checksum=474175668)
