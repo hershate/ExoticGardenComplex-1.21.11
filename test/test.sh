@@ -146,8 +146,9 @@ check_no_in_jar() {
 check_no_in_jar "net/guizhanss/"     "GuizhanLibPlugin"
 check_no_in_jar "io/ncbpfluffybear/" "FluffyMachines"
 check_no_in_jar "com/xzavier0722/"   "xzavier0722 存储"
-# bstats shade(relocate 到 io.github.thebusybiscuit.exoticgarden.bstats)
-grep -q "io/github/thebusybiscuit/exoticgarden/bstats/" "$TMP/addon.list" && ok "bstats 已正确 shade/relocate" || bad "bstats 未 shade"
+# 匿名统计(bstats)已移除：jar 内不应再含 bstats 类（org/bstats 或 relocated 包）
+check_no_in_jar "org/bstats/" "bstats"
+check_no_in_jar "io/github/thebusybiscuit/exoticgarden/bstats/" "bstats(relocated)"
 
 # =====================================================================
 sect "8. 源码迁移完整性"
@@ -172,6 +173,8 @@ check_no_src "Material\.GRASS\b"          "Material.GRASS(应为 SHORT_GRASS)" E
 check_no_src "Particle\.VILLAGER_ANGRY"   "Particle.VILLAGER_ANGRY(应为 ANGRY_VILLAGER)"
 check_no_src "Particle\.VILLAGER_HAPPY"   "Particle.VILLAGER_HAPPY(应为 HAPPY_VILLAGER)"
 check_no_src "BlockDataController"        "BlockDataController(xzavier)"
+check_no_src "org.bstats"                 "bstats 引用(匿名统计已移除)"
+check_no_src "new Metrics("               "Metrics 实例化(匿名统计已移除)"
 
 # =====================================================================
 sect "9. REF 兼容性 (附属 import 的 Slimefun 类须全部存在于 REF)"

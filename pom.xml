@@ -68,14 +68,6 @@
 
                 <configuration>
 
-                    <!-- Shade dependencies into the output jar -->
-                    <relocations>
-                        <relocation>
-                            <pattern>org.bstats</pattern>
-                            <shadedPattern>io.github.thebusybiscuit.exoticgarden.bstats</shadedPattern>
-                        </relocation>
-                    </relocations>
-
                     <!-- Exclude unneeded metadata files from shaded dependencies -->
                     <filters>
                         <filter>
@@ -121,13 +113,6 @@
             <artifactId>jsr305</artifactId>
             <version>3.0.2</version>
             <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.bstats</groupId>
-            <artifactId>bstats-bukkit</artifactId>
-            <version>2.2.1</version>
-            <scope>compile</scope>
         </dependency>
 
         <dependency>
