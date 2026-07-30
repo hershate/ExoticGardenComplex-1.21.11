@@ -17,10 +17,12 @@ public class PlayerAlcohol {
         this.isDrunk = false;
         try {
             YamlConfiguration storge = ExoticGarden.instance.getYamlStorge();
-            ConfigurationSection section = storge.createSection("Players");
-            section.set(player + ".Alcohol", 0);
-            section.set(player + ".Drunk", Boolean.FALSE);
-            storge.save(new File(ExoticGarden.instance.getDataFolder() + File.separator + "storge.yml"));
+            // 切勿使用 createSection("Players") —— 它会清空整个 Players 段，
+            // 导致其它玩家的醉酒数据被全部抹除（新玩家加入即丢数据）。
+            // 直接 set 到玩家子路径即可安全地新增/更新单条记录。
+            storge.set("Players." + player + ".Alcohol", 0);
+            storge.set("Players." + player + ".Drunk", Boolean.FALSE);
+            storge.save(new File(ExoticGarden.instance.getDataFolder(), "storge.yml"));
         } catch (IOException e) {
             e.printStackTrace();
         }
