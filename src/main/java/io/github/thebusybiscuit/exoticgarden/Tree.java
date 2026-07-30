@@ -31,6 +31,12 @@ public class Tree {
         if (schematic == null) {
             schematic = Schematic.loadSchematic(new File(ExoticGarden.getInstance().getSchematicsFolder(), fruit + "_TREE.schematic"));
         }
+        // loadSchematic 在文件缺失/损坏/格式非法时会吞掉异常并返回 null。
+        // 这里把 null 转成 IOException，使调用方 (Schematic.pasteSchematic) 的
+        // catch(IOException) 能正常兜底，避免后续 schematic.getBlocks() 触发 NPE。
+        if (schematic == null) {
+            throw new IOException("Failed to load schematic for tree: " + fruit + "_TREE.schematic (file missing, corrupt, or invalid)");
+        }
 
         return schematic;
     }

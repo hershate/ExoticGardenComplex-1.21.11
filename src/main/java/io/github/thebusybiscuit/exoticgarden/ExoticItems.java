@@ -11,9 +11,9 @@ import io.github.thebusybiscuit.slimefun4.implementation.SlimefunItems;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.items.CustomItemStack;
 
 public class ExoticItems {
-    public static final SlimefunItemStack Wine_Waker = new SlimefunItemStack("WINE_WAKER", new CustomItemStack(Material.POTION, "§3醒酒药", "", "§7喝多了?没关系!", "§7来一瓶竹影牌醒酒药!", "", "§7▷▷ §b酒精度: §e-30", "§7▷▷ §d精神值: §e1", "§7▷▷ §a饱食度: §e1"));
-    public static final SlimefunItemStack Alcohol = new SlimefunItemStack("ALCOHOL", new CustomItemStack(Material.POTION, "§b酒精", "", "§7一种具有挥发性的易燃液体", "§7也是一种不错的有机溶剂"));
-    public static final SlimefunItemStack GoldKeLa = new SlimefunItemStack("GOLDKELA", new CustomItemStack(Material.BONE_MEAL, "§6金坷垃", "", "§7用于给异域花园的植物催熟"));
+    public static final SlimefunItemStack Wine_Waker = new SlimefunItemStack("WINE_WAKER", CustomItemStack.create(Material.POTION, "§3醒酒药", "", "§7喝多了?没关系!", "§7来一瓶竹影牌醒酒药!", "", "§7▷▷ §b酒精度: §e-30", "§7▷▷ §d精神值: §e1", "§7▷▷ §a饱食度: §e1"));
+    public static final SlimefunItemStack Alcohol = new SlimefunItemStack("ALCOHOL", CustomItemStack.create(Material.POTION, "§b酒精", "", "§7一种具有挥发性的易燃液体", "§7也是一种不错的有机溶剂"));
+    public static final SlimefunItemStack GoldKeLa = new SlimefunItemStack("GOLDKELA", CustomItemStack.create(Material.BONE_MEAL, "§6金坷垃", "", "§7用于给异域花园的植物催熟"));
     public static SlimefunItemStack SeedAnalyzer_Core;
     public static SlimefunItemStack SeedAnalyzer_1;
     public static SlimefunItemStack SeedAnalyzer_2;
@@ -29,29 +29,29 @@ public class ExoticItems {
 
     static {
         try {
-            SeedAnalyzer_Core = new SlimefunItemStack("SEED_ANALYZER_CORE", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2MxZTJiODJkYjEwYWQyNWNhNDEzNDVlOTI0NWY1ODQ3ZTc2NzYwY2QyNDVjNDhlNWFmMWZkODk4NWVmOTE1In19fQ=="), "&b种子分析机&7-&e核心", "", "&7用于制造种子分析机的核心组件"));
+            SeedAnalyzer_Core = new SlimefunItemStack("SEED_ANALYZER_CORE", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2MxZTJiODJkYjEwYWQyNWNhNDEzNDVlOTI0NWY1ODQ3ZTc2NzYwY2QyNDVjNDhlNWFmMWZkODk4NWVmOTE1In19fQ=="), "&b种子分析机&7-&e核心", "", "&7用于制造种子分析机的核心组件"));
 
-            SeedAnalyzer_1 = new SlimefunItemStack("SEED_ANALYZER_1", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&b种子分析机&7-&eI", "", "&7用于分析未知的种子", "&7并将其培养为可种植的苗", " ", "§7▷▷ §b耗电: §e50J/s", "§7▷▷ §b缓存: §e1024J", "§7▷▷ §b分析速度: §e100s", "§7▷▷ §a种子成活率: &8低"));
+            SeedAnalyzer_1 = new SlimefunItemStack("SEED_ANALYZER_1", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&b种子分析机&7-&eI", "", "&7用于分析未知的种子", "&7并将其培养为可种植的苗", " ", "§7▷▷ §b耗电: §e50J/s", "§7▷▷ §b缓存: §e1024J", "§7▷▷ §b分析速度: §e100s", "§7▷▷ §a种子成活率: &8低"));
 
-            SeedAnalyzer_2 = new SlimefunItemStack("SEED_ANALYZER_2", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&b种子分析机&7-&eII", "", "&7用于分析未知的种子", "&7并将其培养为可种植的苗", " ", "§7▷▷ §b耗电: §e50J/s", "§7▷▷ §b缓存: §e1024J", "§7▷▷ §b分析速度: §e60s", "§7▷▷ §a种子成活率: &a中"));
+            SeedAnalyzer_2 = new SlimefunItemStack("SEED_ANALYZER_2", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&b种子分析机&7-&eII", "", "&7用于分析未知的种子", "&7并将其培养为可种植的苗", " ", "§7▷▷ §b耗电: §e50J/s", "§7▷▷ §b缓存: §e1024J", "§7▷▷ §b分析速度: §e60s", "§7▷▷ §a种子成活率: &a中"));
 
-            SeedAnalyzer_3 = new SlimefunItemStack("SEED_ANALYZER_3", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&b种子分析机&7-&eIII", "", "&7用于分析未知的种子", "&7并将其培养为可种植的苗", " ", "§7▷▷ §b耗电: §e50J/s", "§7▷▷ §b缓存: §e1024J", "§7▷▷ §b分析速度: §e20s", "§7▷▷ §a种子成活率: &6高"));
+            SeedAnalyzer_3 = new SlimefunItemStack("SEED_ANALYZER_3", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTI1NmY3ZmY1MmU3YmZkODE4N2I4M2RkMzRkZjM0NTAyOTUyYjhkYjlmYWZiNzI4OGViZWJiNmU3OGVmMTVmIn19fQ=="), "&b种子分析机&7-&eIII", "", "&7用于分析未知的种子", "&7并将其培养为可种植的苗", " ", "§7▷▷ §b耗电: §e50J/s", "§7▷▷ §b缓存: §e1024J", "§7▷▷ §b分析速度: §e20s", "§7▷▷ §a种子成活率: &6高"));
 
-            Yeast_1 = new SlimefunItemStack("YEAST_1", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTMzODI2Mjc1N2Q2M2U0MmQ0NGE2ZjE1OTliMTJkODI3NzQwZDdmM2FiOWEyZTZkZGIxNjFmZGE4YzNlZWYifX19"), "&2初级酒曲", "", "&7用于酿酒", "&7最简单易制的酒曲"));
+            Yeast_1 = new SlimefunItemStack("YEAST_1", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTMzODI2Mjc1N2Q2M2U0MmQ0NGE2ZjE1OTliMTJkODI3NzQwZDdmM2FiOWEyZTZkZGIxNjFmZGE4YzNlZWYifX19"), "&2初级酒曲", "", "&7用于酿酒", "&7最简单易制的酒曲"));
 
-            Yeast_2 = new SlimefunItemStack("YEAST_2", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjI5NjAzZDgyOTYzMDU2YmUxMzUyMmNmYjdkNDUyMGM3NmJhNjg3ZjM5NmEwZGFiMTI1ZTYzYjVkYWNlYTgifX19"), "&a中级酒曲", "", "&7用于酿酒", "&7制作这种酒曲需要一定制作工艺"));
+            Yeast_2 = new SlimefunItemStack("YEAST_2", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjI5NjAzZDgyOTYzMDU2YmUxMzUyMmNmYjdkNDUyMGM3NmJhNjg3ZjM5NmEwZGFiMTI1ZTYzYjVkYWNlYTgifX19"), "&a中级酒曲", "", "&7用于酿酒", "&7制作这种酒曲需要一定制作工艺"));
 
-            Yeast_3 = new SlimefunItemStack("YEAST_3", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNmViZjUxYTNhNTJiNzQ3MmEyODVjNjU4Mjg0Njg4YmNiZTU3Y2Q5ZjZmYWE3YTNlNGMyNmE2MTA1MjU0In19fQ=="), "&e高级酒曲", "", "&7用于酿酒", "&7用于制作高级酒的酒曲"));
+            Yeast_3 = new SlimefunItemStack("YEAST_3", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNmViZjUxYTNhNTJiNzQ3MmEyODVjNjU4Mjg0Njg4YmNiZTU3Y2Q5ZjZmYWE3YTNlNGMyNmE2MTA1MjU0In19fQ=="), "&e高级酒曲", "", "&7用于酿酒", "&7用于制作高级酒的酒曲"));
 
-            Yeast_4 = new SlimefunItemStack("YEAST_4", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWRiOTEyYzFlZDQ2MDg4OTBhZTU5NGUxYmY3ZGQ3MDM0ODY2NzVjZjY0NzU0ZmY5MmVlM2U0YWQzYWRiYyJ9fX0="), "&d特级酒曲", "", "&7用于酿酒", "&7极难制作出来的酒曲"));
+            Yeast_4 = new SlimefunItemStack("YEAST_4", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWRiOTEyYzFlZDQ2MDg4OTBhZTU5NGUxYmY3ZGQ3MDM0ODY2NzVjZjY0NzU0ZmY5MmVlM2U0YWQzYWRiYyJ9fX0="), "&d特级酒曲", "", "&7用于酿酒", "&7极难制作出来的酒曲"));
 
-            YeastCulturer = new SlimefunItemStack("YEAST_CULTURER", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2MxZTJiODJkYjEwYWQyNWNhNDEzNDVlOTI0NWY1ODQ3ZTc2NzYwY2QyNDVjNDhlNWFmMWZkODk4NWVmOTE1In19fQ=="), "&b酒曲培养机", "", "&7用于制作酒曲", " ", "§7▷▷ §b耗电: §e8J/s", "§7▷▷ §b缓存: §e128J"));
+            YeastCulturer = new SlimefunItemStack("YEAST_CULTURER", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2MxZTJiODJkYjEwYWQyNWNhNDEzNDVlOTI0NWY1ODQ3ZTc2NzYwY2QyNDVjNDhlNWFmMWZkODk4NWVmOTE1In19fQ=="), "&b酒曲培养机", "", "&7用于制作酒曲", " ", "§7▷▷ §b耗电: §e8J/s", "§7▷▷ §b缓存: §e128J"));
 
-            ElectricityBrewing_1 = new SlimefunItemStack("ELECTRICITY_BREWING_1", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmZiOTg1OTYyZjQ2ZTA1NWY1M2Q4ZWUzNWIxMWI4YTYyZjM5N2RhZDlkYjlmZWFlZmY0ODI5NjMwZDlkOSJ9fX0="), "&b电力酿造机&7-&eI", "", "&7用于制作美酒", " ", "§7▷▷ §b耗电: §e16J/s", "§7▷▷ §b缓存: §e256J"));
+            ElectricityBrewing_1 = new SlimefunItemStack("ELECTRICITY_BREWING_1", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmZiOTg1OTYyZjQ2ZTA1NWY1M2Q4ZWUzNWIxMWI4YTYyZjM5N2RhZDlkYjlmZWFlZmY0ODI5NjMwZDlkOSJ9fX0="), "&b电力酿造机&7-&eI", "", "&7用于制作美酒", " ", "§7▷▷ §b耗电: §e16J/s", "§7▷▷ §b缓存: §e256J"));
 
-            ElectricityBrewing_2 = new SlimefunItemStack("ELECTRICITY_BREWING_2", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmZiOTg1OTYyZjQ2ZTA1NWY1M2Q4ZWUzNWIxMWI4YTYyZjM5N2RhZDlkYjlmZWFlZmY0ODI5NjMwZDlkOSJ9fX0="), "&b电力酿造机&7-&eII", "", "&7用于制作美酒", " ", "§7▷▷ §b耗电: §e24J/s", "§7▷▷ §b缓存: §e512J"));
+            ElectricityBrewing_2 = new SlimefunItemStack("ELECTRICITY_BREWING_2", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmZiOTg1OTYyZjQ2ZTA1NWY1M2Q4ZWUzNWIxMWI4YTYyZjM5N2RhZDlkYjlmZWFlZmY0ODI5NjMwZDlkOSJ9fX0="), "&b电力酿造机&7-&eII", "", "&7用于制作美酒", " ", "§7▷▷ §b耗电: §e24J/s", "§7▷▷ §b缓存: §e512J"));
 
-            ElectricityBrewing_3 = new SlimefunItemStack("ELECTRICITY_BREWING_3", new CustomItemStack(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmZiOTg1OTYyZjQ2ZTA1NWY1M2Q4ZWUzNWIxMWI4YTYyZjM5N2RhZDlkYjlmZWFlZmY0ODI5NjMwZDlkOSJ9fX0="), "&b电力酿造机&7-&eIII", "", "&7用于制作美酒", " ", "§7▷▷ §b耗电: §e32J/s", "§7▷▷ §b缓存: §e768J"));
+            ElectricityBrewing_3 = new SlimefunItemStack("ELECTRICITY_BREWING_3", CustomItemStack.create(SkullUtil.getByBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmZiOTg1OTYyZjQ2ZTA1NWY1M2Q4ZWUzNWIxMWI4YTYyZjM5N2RhZDlkYjlmZWFlZmY0ODI5NjMwZDlkOSJ9fX0="), "&b电力酿造机&7-&eIII", "", "&7用于制作美酒", " ", "§7▷▷ §b耗电: §e32J/s", "§7▷▷ §b缓存: §e768J"));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -59,9 +59,15 @@ public class ExoticItems {
     }
 
     public static void registerItems() {
-        (new SlimefunItem(ExoticGarden.instance.miscItemGroup, GoldKeLa, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
-                SlimefunItem.getById("FERTILIZER_WHEAT").getItem(), null, null, null, null, null, null, null, null}, new CustomItemStack(GoldKeLa, 16))).register(ExoticGarden.instance);
-        (new SlimefunItem(ExoticGarden.instance.techItemGroup, SeedAnalyzer_Core, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.COOLING_UNIT, SlimefunItems.SYNTHETIC_DIAMOND, SlimefunItems.HEATING_COIL, SlimefunItems.COOLING_UNIT, SlimefunItems.BIO_REACTOR, SlimefunItems.HEATING_COIL, SlimefunItems.COOLING_UNIT, SlimefunItems.BIG_CAPACITOR, SlimefunItems.HEATING_COIL
+        // FERTILIZER_WHEAT 为 Slimefun 原版物品；若 REF 缺失则跳过注册，避免空配方被空手合成刷物品。
+        ItemStack fertilizerWheat = ExoticGarden.getItem("FERTILIZER_WHEAT");
+        if (fertilizerWheat != null) {
+            (new SlimefunItem(ExoticGarden.instance.miscItemGroup, GoldKeLa, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{
+                    fertilizerWheat, null, null, null, null, null, null, null, null}, CustomItemStack.create(GoldKeLa.item(), 16))).register(ExoticGarden.instance);
+        } else {
+            ExoticGarden.instance.getLogger().severe("FERTILIZER_WHEAT 未在 Slimefun 中找到，跳过 GoldKeLa 注册以避免空配方刷物品。");
+        }
+        (new SlimefunItem(ExoticGarden.instance.techItemGroup, SeedAnalyzer_Core, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.COOLING_UNIT.item(), SlimefunItems.SYNTHETIC_DIAMOND.item(), SlimefunItems.HEATING_COIL.item(), SlimefunItems.COOLING_UNIT.item(), SlimefunItems.BIO_REACTOR.item(), SlimefunItems.HEATING_COIL.item(), SlimefunItems.COOLING_UNIT.item(), SlimefunItems.BIG_CAPACITOR.item(), SlimefunItems.HEATING_COIL.item()
         })).register(ExoticGarden.instance);
         (new SlimefunItem(ExoticGarden.instance.miscItemGroup, Yeast_1, ExoticGardenRecipeTypes.YeastCulturer, new ItemStack[]{null, null, null, null, new ItemStack(Material.HAY_BLOCK), null, null, null, null
         })).register(ExoticGarden.instance);
@@ -69,10 +75,10 @@ public class ExoticItems {
                 ExoticGarden.getItem("WINEFRUIT"), null, null, null, null})).register(ExoticGarden.instance);
         (new SlimefunItem(ExoticGarden.instance.miscItemGroup, Yeast_3, ExoticGardenRecipeTypes.YeastCulturer, new ItemStack[]{null, null, null, null,
                 ExoticGarden.getItem("DREAMFRUIT"), null, null, null, null})).register(ExoticGarden.instance);
-        (new SlimefunItem(ExoticGarden.instance.miscItemGroup, Yeast_4, ExoticGardenRecipeTypes.YeastCulturer, new ItemStack[]{null, null, null, null, new CustomItemStack(YeastCulturer, "&b酒曲培养机", "", "&7酒曲培养机产出的副产物"), null, null, null, null
+        (new SlimefunItem(ExoticGarden.instance.miscItemGroup, Yeast_4, ExoticGardenRecipeTypes.YeastCulturer, new ItemStack[]{null, null, null, null, CustomItemStack.create(YeastCulturer.item(), "&b酒曲培养机", "", "&7酒曲培养机产出的副产物"), null, null, null, null
         })).register(ExoticGarden.instance);
 
-        (new SeedAnalyzer(ExoticGarden.instance.techItemGroup, SeedAnalyzer_1, "SEED_ANALYZER_1", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.HARDENED_GLASS, SlimefunItems.HARDENED_GLASS, SlimefunItems.HARDENED_GLASS, SlimefunItems.HARDENED_GLASS, SeedAnalyzer_Core, SlimefunItems.HARDENED_GLASS, SlimefunItems.HARDENED_GLASS, SlimefunItems.REINFORCED_PLATE, SlimefunItems.HARDENED_GLASS}) {
+        (new SeedAnalyzer(ExoticGarden.instance.techItemGroup, SeedAnalyzer_1.item(), "SEED_ANALYZER_1", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.HARDENED_GLASS.item(), SeedAnalyzer_Core.item(), SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.REINFORCED_PLATE.item(), SlimefunItems.HARDENED_GLASS.item()}) {
 
 
             public String getInventoryTitle() {
@@ -94,7 +100,7 @@ public class ExoticItems {
             }
         }).register(ExoticGarden.instance);
 
-        (new SeedAnalyzer(ExoticGarden.instance.techItemGroup, SeedAnalyzer_2, "SEED_ANALYZER_2", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.HARDENED_GLASS, SlimefunItems.HEATING_COIL, SlimefunItems.HARDENED_GLASS, SlimefunItems.REACTOR_COOLANT_CELL, SeedAnalyzer_1, SlimefunItems.REACTOR_COOLANT_CELL, SlimefunItems.HARDENED_GLASS, SlimefunItems.HEATING_COIL, SlimefunItems.HARDENED_GLASS}) {
+        (new SeedAnalyzer(ExoticGarden.instance.techItemGroup, SeedAnalyzer_2.item(), "SEED_ANALYZER_2", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.HEATING_COIL.item(), SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.REACTOR_COOLANT_CELL.item(), SeedAnalyzer_1.item(), SlimefunItems.REACTOR_COOLANT_CELL.item(), SlimefunItems.HARDENED_GLASS.item(), SlimefunItems.HEATING_COIL.item(), SlimefunItems.HARDENED_GLASS.item()}) {
 
 
             public String getInventoryTitle() {
@@ -116,7 +122,7 @@ public class ExoticItems {
             }
         }).register(ExoticGarden.instance);
 
-        (new SeedAnalyzer(ExoticGarden.instance.techItemGroup, SeedAnalyzer_3, "SEED_ANALYZER_3", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.WITHER_PROOF_GLASS, SlimefunItems.WITHER_PROOF_GLASS, SlimefunItems.WITHER_PROOF_GLASS, SlimefunItems.NETHER_ICE_COOLANT_CELL, SeedAnalyzer_2, SlimefunItems.NETHER_ICE_COOLANT_CELL, SlimefunItems.WITHER_PROOF_GLASS, SlimefunItems.WITHER_PROOF_GLASS, SlimefunItems.WITHER_PROOF_GLASS}) {
+        (new SeedAnalyzer(ExoticGarden.instance.techItemGroup, SeedAnalyzer_3.item(), "SEED_ANALYZER_3", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{SlimefunItems.WITHER_PROOF_GLASS.item(), SlimefunItems.WITHER_PROOF_GLASS.item(), SlimefunItems.WITHER_PROOF_GLASS.item(), SlimefunItems.NETHER_ICE_COOLANT_CELL.item(), SeedAnalyzer_2.item(), SlimefunItems.NETHER_ICE_COOLANT_CELL.item(), SlimefunItems.WITHER_PROOF_GLASS.item(), SlimefunItems.WITHER_PROOF_GLASS.item(), SlimefunItems.WITHER_PROOF_GLASS.item()}) {
 
 
             public String getInventoryTitle() {
@@ -139,7 +145,7 @@ public class ExoticItems {
         }).register(ExoticGarden.instance);
 
 
-        (new YeastCulturer(ExoticGarden.instance.techItemGroup, YeastCulturer, "YEAST_CULTURER", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR, new ItemStack(Material.OAK_LOG), SlimefunItems.HEATING_COIL, SlimefunItems.FOOD_FABRICATOR_2, SlimefunItems.HEATING_COIL, SlimefunItems.STONE_CHUNK, SlimefunItems.ADVANCED_CIRCUIT_BOARD, SlimefunItems.STONE_CHUNK}) {
+        (new YeastCulturer(ExoticGarden.instance.techItemGroup, YeastCulturer.item(), "YEAST_CULTURER", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR.item(), new ItemStack(Material.OAK_LOG), SlimefunItems.HEATING_COIL.item(), SlimefunItems.FOOD_FABRICATOR_2.item(), SlimefunItems.HEATING_COIL.item(), SlimefunItems.STONE_CHUNK.item(), SlimefunItems.ADVANCED_CIRCUIT_BOARD.item(), SlimefunItems.STONE_CHUNK.item()}) {
 
 
             public String getInventoryTitle() {
@@ -161,7 +167,7 @@ public class ExoticItems {
             }
         }).register(ExoticGarden.instance);
 
-        (new ElectricityBrewing(ExoticGarden.instance.techItemGroup, ElectricityBrewing_1, "ELECTRICITY_BREWING_1", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR, new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_EMERALD, YeastCulturer, SlimefunItems.SYNTHETIC_EMERALD, new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_EMERALD, new ItemStack(Material.OAK_LOG)}) {
+        (new ElectricityBrewing(ExoticGarden.instance.techItemGroup, ElectricityBrewing_1.item(), "ELECTRICITY_BREWING_1", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR.item(), new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_EMERALD.item(), YeastCulturer.item(), SlimefunItems.SYNTHETIC_EMERALD.item(), new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_EMERALD.item(), new ItemStack(Material.OAK_LOG)}) {
 
 
             public String getInventoryTitle() {
@@ -183,7 +189,7 @@ public class ExoticItems {
             }
         }).register(ExoticGarden.instance);
 
-        (new ElectricityBrewing(ExoticGarden.instance.techItemGroup, ElectricityBrewing_2, "ELECTRICITY_BREWING_2", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR, new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_DIAMOND, ElectricityBrewing_1, SlimefunItems.SYNTHETIC_DIAMOND, new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_DIAMOND, new ItemStack(Material.OAK_LOG)}) {
+        (new ElectricityBrewing(ExoticGarden.instance.techItemGroup, ElectricityBrewing_2.item(), "ELECTRICITY_BREWING_2", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR.item(), new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_DIAMOND.item(), ElectricityBrewing_1.item(), SlimefunItems.SYNTHETIC_DIAMOND.item(), new ItemStack(Material.OAK_LOG), SlimefunItems.SYNTHETIC_DIAMOND.item(), new ItemStack(Material.OAK_LOG)}) {
 
 
             public String getInventoryTitle() {
@@ -205,7 +211,7 @@ public class ExoticItems {
             }
         }).register(ExoticGarden.instance);
 
-        (new ElectricityBrewing(ExoticGarden.instance.techItemGroup, ElectricityBrewing_3, "ELECTRICITY_BREWING_3", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR, new ItemStack(Material.OAK_LOG), SlimefunItems.CARBONADO, ElectricityBrewing_2, SlimefunItems.CARBONADO, new ItemStack(Material.OAK_LOG), SlimefunItems.CARBONADO, new ItemStack(Material.OAK_LOG)}) {
+        (new ElectricityBrewing(ExoticGarden.instance.techItemGroup, ElectricityBrewing_3.item(), "ELECTRICITY_BREWING_3", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{new ItemStack(Material.OAK_LOG), SlimefunItems.ELECTRIC_MOTOR.item(), new ItemStack(Material.OAK_LOG), SlimefunItems.CARBONADO.item(), ElectricityBrewing_2.item(), SlimefunItems.CARBONADO.item(), new ItemStack(Material.OAK_LOG), SlimefunItems.CARBONADO.item(), new ItemStack(Material.OAK_LOG)}) {
 
 
             public String getInventoryTitle() {
@@ -228,12 +234,12 @@ public class ExoticItems {
         }).register(ExoticGarden.instance);
 
         try {
-            (new SlimefunItem(ExoticGarden.instance.miscItemGroup, Alcohol, ExoticGardenRecipeTypes.BREWER, new ItemStack[]{null, null, null, null, new CustomItemStack(new ItemStack(Material.GHAST_TEAR), "&7酿造副产品"), null, null, null, null
+            (new SlimefunItem(ExoticGarden.instance.miscItemGroup, Alcohol, ExoticGardenRecipeTypes.BREWER, new ItemStack[]{null, null, null, null, CustomItemStack.create(new ItemStack(Material.GHAST_TEAR), "&7酿造副产品"), null, null, null, null
             })).register(ExoticGarden.instance);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        (new CustomWine(ExoticGarden.instance.miscItemGroup, Wine_Waker, "WINE_WAKER", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{null, new ItemStack(Material.BROWN_MUSHROOM), null, new ItemStack(Material.FERN), Alcohol, new ItemStack(Material.POPPY), null, new ItemStack(Material.EGG), null}, 1, 1.0F, -30))
+        (new CustomWine(ExoticGarden.instance.miscItemGroup, Wine_Waker.item(), "WINE_WAKER", RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{null, new ItemStack(Material.BROWN_MUSHROOM), null, new ItemStack(Material.FERN), Alcohol.item(), new ItemStack(Material.POPPY), null, new ItemStack(Material.EGG), null}, 1, 1.0F, -30))
 
 
                 .register(ExoticGarden.instance);

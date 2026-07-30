@@ -28,9 +28,9 @@ package io.github.thebusybiscuit.exoticgarden.schematics.org.jnbt;
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * CONTRACT, STRICT OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+ * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 import java.io.Closeable;
@@ -52,9 +52,26 @@ import java.util.zip.GZIPInputStream;
  * be found at <a href="http://www.minecraft.net/docs/NBT.txt">
  * http://www.minecraft.net/docs/NBT.txt</a>.</p>
  *
+ * <p><b>安全加固</b>：schematic 文件可能被人为替换/损坏（不可信任的输入）。
+ * 原实现对 {@code readInt()/readShort()} 返回的长度直接分配数组并对嵌套递归无深度限制，
+ * 恶意/损坏文件可触发 {@link OutOfMemoryError}（巨型数组）或 {@link StackOverflowError}
+ * （超深嵌套）导致服务器崩溃。现对数组/列表长度与递归深度加上限，越界即抛
+ * {@link IOException}（可被上层 catch 兜底，转为“加载失败”而非崩服）。</p>
+ *
  * @author Graham Edgecombe
  */
 public final class NBTInputStream implements Closeable {
+
+    /** NBT 递归深度上限，防止恶意深层嵌套导致 StackOverflowError。 */
+    private static final int MAX_DEPTH = 64;
+    /** TAG_Byte_Array 长度上限（16 MiB），防止恶意巨型分配导致 OutOfMemoryError。 */
+    private static final int MAX_BYTE_ARRAY_LENGTH = 1 << 24;
+    /** TAG_String 字节长度上限。 */
+    private static final int MAX_STRING_LENGTH = 1 << 16;
+    /** TAG_List 元素数量上限。 */
+    private static final int MAX_LIST_LENGTH = 1 << 20;
+    /** 名称字节长度上限。 */
+    private static final int MAX_NAME_LENGTH = 1 << 14;
 
     /**
      * The data input stream.
@@ -95,6 +112,9 @@ public final class NBTInputStream implements Closeable {
         String name;
         if (type != NBTConstants.TYPE_END) {
             int nameLength = is.readShort() & 0xFFFF;
+            if (nameLength > MAX_NAME_LENGTH) {
+                throw new IOException("NBT name length too large: " + nameLength);
+            }
             byte[] nameBytes = new byte[nameLength];
             is.readFully(nameBytes);
             name = new String(nameBytes, NBTConstants.CHARSET);
@@ -115,6 +135,10 @@ public final class NBTInputStream implements Closeable {
      * @throws IOException if an I/O error occurs.
      */
     private Tag readTagPayload(int type, String name, int depth) throws IOException {
+        if (depth > MAX_DEPTH) {
+            throw new IOException("NBT nesting depth exceeded maximum of " + MAX_DEPTH);
+        }
+
         switch (type) {
             case NBTConstants.TYPE_END:
                 if (depth == 0) {
@@ -136,19 +160,28 @@ public final class NBTInputStream implements Closeable {
                 return new DoubleTag(name, is.readDouble());
             case NBTConstants.TYPE_BYTE_ARRAY:
                 int length = is.readInt();
+                if (length < 0 || length > MAX_BYTE_ARRAY_LENGTH) {
+                    throw new IOException("NBT byte array length out of range: " + length);
+                }
                 byte[] bytes = new byte[length];
                 is.readFully(bytes);
                 return new ByteArrayTag(name, bytes);
             case NBTConstants.TYPE_STRING:
-                length = is.readShort();
+                length = is.readShort() & 0xFFFF;
+                if (length > MAX_STRING_LENGTH) {
+                    throw new IOException("NBT string length too large: " + length);
+                }
                 bytes = new byte[length];
                 is.readFully(bytes);
                 return new StringTag(name, new String(bytes, NBTConstants.CHARSET));
             case NBTConstants.TYPE_LIST:
                 int childType = is.readByte();
                 length = is.readInt();
+                if (length < 0 || length > MAX_LIST_LENGTH) {
+                    throw new IOException("NBT list length out of range: " + length);
+                }
 
-                List<Tag> tagList = new ArrayList<>();
+                List<Tag> tagList = new ArrayList<>(Math.min(length, 64));
                 for (int i = 0; i < length; i++) {
                     Tag tag = readTagPayload(childType, "", depth + 1);
                     if (tag instanceof EndTag) {

@@ -21,15 +21,15 @@ public abstract class YeastCulturer
 
 
     public void registerDefaultRecipes() {
-        registerRecipe(120, new ItemStack[]{new ItemStack(Material.HAY_BLOCK)}, new ItemStack[]{ExoticItems.Yeast_1});
-        registerRecipe(80, new ItemStack[]{getById("WINEFRUIT").getItem()}, new ItemStack[]{ExoticItems.Yeast_2});
-        registerRecipe(40, new ItemStack[]{getById("DREAMFRUIT").getItem()}, new ItemStack[]{ExoticItems.Yeast_3});
+        registerRecipe(120, new ItemStack[]{new ItemStack(Material.HAY_BLOCK)}, new ItemStack[]{ExoticItems.Yeast_1.item()});
+        registerRecipe(80, new ItemStack[]{getById("WINEFRUIT").getItem()}, new ItemStack[]{ExoticItems.Yeast_2.item()});
+        registerRecipe(40, new ItemStack[]{getById("DREAMFRUIT").getItem()}, new ItemStack[]{ExoticItems.Yeast_3.item()});
     }
 
 
     public List<DefaultSubRecipe> getSubRecipes() {
         List<DefaultSubRecipe> subRecipes = new ArrayList<>();
-        subRecipes.add(new DefaultSubRecipe(750 + getLevel() * 250, ExoticItems.Yeast_4));
+        subRecipes.add(new DefaultSubRecipe(750 + getLevel() * 250, ExoticItems.Yeast_4.item()));
         return subRecipes;
     }
 

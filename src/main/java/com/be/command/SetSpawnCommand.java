@@ -12,28 +12,34 @@ public class SetSpawnCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (sender instanceof Player p) {
-            if (args.length == 0) {
-                if (sender.isOp() || sender.hasPermission("spawn.admin")) {
-                    ExoticGarden.getInstance().reloadConfig();
-                    ExoticGarden.getInstance().getConfig().set("spawn.world", p.getWorld().getName());
-                    ExoticGarden.getInstance().getConfig().set("spawn.x", p.getLocation().getX());
-                    ExoticGarden.getInstance().getConfig().set("spawn.y", p.getLocation().getY());
-                    ExoticGarden.getInstance().getConfig().set("spawn.z", p.getLocation().getZ());
-                    ExoticGarden.getInstance().getConfig().set("spawn.yaw", p.getLocation().getYaw());
-                    ExoticGarden.getInstance().getConfig().set("spawn.pitch", p.getLocation().getPitch());
-                    ExoticGarden.getInstance().saveConfig();
-                    p.sendMessage(ChatColor.translateAlternateColorCodes('&', ExoticGarden.getInstance().getConfig().getString("messages.success-setspawn")));
-                } else {
-                    p.sendMessage("§cYou do not have permission to execute this command!");
-                }
-            } else {
-                sender.sendMessage(ChatColor.translateAlternateColorCodes('&', ExoticGarden.getInstance().getConfig().getString("messages.cmd-setspawn-usage")));
-            }
-        } else {
+        if (!(sender instanceof Player p)) {
             sender.sendMessage("This Command can only executed by a player, sorry!");
+            return true;
+        }
+        if (args.length != 0) {
+            sender.sendMessage(color(ExoticGarden.getInstance().getConfig().getString("messages.cmd-setspawn-usage"), "&c用法: /setspawn"));
+            return true;
+        }
+        if (!(sender.isOp() || sender.hasPermission("spawn.admin"))) {
+            p.sendMessage("§cYou do not have permission to execute this command!");
+            return true;
         }
 
-        return false;
+        ExoticGarden plugin = ExoticGarden.getInstance();
+        // 写入内存 config 后 saveConfig 落盘；不再先 reloadConfig（多余且会丢弃运行时改动）。
+        plugin.getConfig().set("spawn.world", p.getWorld().getName());
+        plugin.getConfig().set("spawn.x", p.getLocation().getX());
+        plugin.getConfig().set("spawn.y", p.getLocation().getY());
+        plugin.getConfig().set("spawn.z", p.getLocation().getZ());
+        plugin.getConfig().set("spawn.yaw", p.getLocation().getYaw());
+        plugin.getConfig().set("spawn.pitch", p.getLocation().getPitch());
+        plugin.saveConfig();
+        p.sendMessage(color(plugin.getConfig().getString("messages.success-setspawn"), "&a成功设置出生点"));
+        return true;
+    }
+
+    /** 对可能为 null 的配置字符串做颜色转换，null 时使用 fallback，避免 NPE。 */
+    private static String color(String raw, String fallback) {
+        return ChatColor.translateAlternateColorCodes('&', raw != null ? raw : fallback);
     }
 }
