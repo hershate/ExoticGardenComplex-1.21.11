@@ -12,7 +12,9 @@ public class MagicalEssence extends SlimefunItem {
 
     @ParametersAreNonnullByDefault
     public MagicalEssence(ItemGroup itemGroup, SlimefunItemStack item) {
-        super(itemGroup, item, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{item.item(), item.item(), item.item(), item.item(), null, item.item(), item.item(), item.item(), item.item()});
+        // 精华由 MagicalEssence 机器产出，不应通过增强台合成。原 8→1 自指配方会让玩家
+        // 误操作损失 7 个精华（无合理合成意图）。改为 1→1 占位（无损失、无收益）。
+        super(itemGroup, item, RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[]{null, null, null, null, item.item(), null, null, null, null});
     }
 
     @Override

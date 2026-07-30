@@ -21,6 +21,13 @@ public class Crook extends SimpleSlimefunItem<ToolUseHandler> implements NotPlac
 
     private static final int CHANCE = 25;
 
+    /** 1.19+ 新树叶→树苗的显式映射（名称不遵循 XXX_LEAVES→XXX_SAPLING 规则）。 */
+    private static final java.util.Map<Material, Material> LEAF_TO_SAPLING = new java.util.EnumMap<>(Material.class);
+    static {
+        LEAF_TO_SAPLING.put(Material.MANGROVE_LEAVES, Material.MANGROVE_PROPAGULE);
+        LEAF_TO_SAPLING.put(Material.CHERRY_LEAVES, Material.CHERRY_SAPLING);
+    }
+
     @ParametersAreNonnullByDefault
     public Crook(ItemGroup itemGroup, SlimefunItemStack item, RecipeType recipeType, ItemStack[] recipe) {
         super(itemGroup, item, recipeType, recipe);
@@ -38,10 +45,15 @@ public class Crook extends SimpleSlimefunItem<ToolUseHandler> implements NotPlac
             damageItem(e.getPlayer(), tool);
 
             if (Tag.LEAVES.isTagged(e.getBlock().getType()) && ThreadLocalRandom.current().nextInt(100) < CHANCE) {
-                Material saplingMaterial = Material.getMaterial(e.getBlock().getType().toString().replace("LEAVES", "SAPLING"));
+                Material leaf = e.getBlock().getType();
+                // 1.19+ 新树叶的树苗名不遵循 "XXX_LEAVES"→"XXX_SAPLING" 规则，需显式映射；
+                // 标准树仍走名称规则；找不到返回 null（如杜鹃叶无对应树苗，不掉）。
+                Material saplingMaterial = LEAF_TO_SAPLING.get(leaf);
+                if (saplingMaterial == null) {
+                    saplingMaterial = Material.matchMaterial(leaf.name().replace("LEAVES", "SAPLING"));
+                }
                 if (saplingMaterial != null) {
-                    ItemStack sapling = new ItemStack(saplingMaterial);
-                    drops.add(sapling);
+                    drops.add(new ItemStack(saplingMaterial));
                 }
             }
         };
