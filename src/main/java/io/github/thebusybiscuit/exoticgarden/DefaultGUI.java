@@ -27,7 +27,9 @@ import io.github.thebusybiscuit.slimefun4.core.attributes.EnergyNetComponent;
 import io.github.thebusybiscuit.slimefun4.core.handlers.BlockBreakHandler;
 import io.github.thebusybiscuit.slimefun4.core.handlers.BlockPlaceHandler;
 import io.github.thebusybiscuit.slimefun4.core.networks.energy.EnergyNetComponentType;
+import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.items.CustomItemStack;
+import io.github.thebusybiscuit.slimefun4.libraries.dough.protection.Interaction;
 import io.github.thebusybiscuit.slimefun4.utils.SlimefunUtils;
 import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config;
 import me.mrCookieSlime.CSCoreLibPlugin.general.Inventory.ChestMenu;
@@ -67,8 +69,9 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
 
 
             public boolean canOpen(Block b, Player p) {
-                boolean perm = (p.hasPermission("slimefun.inventory.bypass"));
-                return true;
+                // 安全：必须拥有该方块的交互权限（领地/保护）才能打开 GUI。
+                // 原实现恒返回 true，任何人都能打开他人机器取走原料/产物，绕过保护。
+                return Slimefun.getProtectionManager().hasPermission(p, b.getLocation(), Interaction.INTERACT_BLOCK);
             }
 
 
@@ -146,8 +149,9 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
 
 
             public boolean canOpen(Block b, Player p) {
-                boolean perm = (p.hasPermission("slimefun.inventory.bypass"));
-                return true;
+                // 安全：必须拥有该方块的交互权限（领地/保护）才能打开 GUI。
+                // 原实现恒返回 true，任何人都能打开他人机器取走原料/产物，绕过保护。
+                return Slimefun.getProtectionManager().hasPermission(p, b.getLocation(), Interaction.INTERACT_BLOCK);
             }
 
 
@@ -210,14 +214,13 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
     }
 
     public int[] getOutputSlots() {
-        var list = Arrays.stream(getOutputSubSlots()).boxed().toList();
-        list.addAll(Arrays.stream(getOutputMainSlots()).boxed().toList());
-
-        int[] o = new int[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            o[i] = list.get(i);
-        }
-
+        // 注意：不可使用 Stream#toList() —— 它返回不可变 List，后续 addAll 会抛
+        // UnsupportedOperationException，导致 cargo/机器人提取产物时崩溃。
+        int[] sub = getOutputSubSlots();
+        int[] main = getOutputMainSlots();
+        int[] o = new int[sub.length + main.length];
+        System.arraycopy(sub, 0, o, 0, sub.length);
+        System.arraycopy(main, 0, o, sub.length, main.length);
         return o;
     }
 
@@ -288,53 +291,39 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
     }
 
 
-    private Inventory inject(Block b) {
-        int size = BlockStorage.getInventory(b).toInventory().getSize();
-        Inventory inv = Bukkit.createInventory(null, size);
-        for (int i = 0; i < size; i++) {
-            inv.setItem(i, CustomItemStack.create(Material.COMMAND_BLOCK, " &4ALL YOUR PLACEHOLDERS ARE BELONG TO US"));
-        }
-        for (int slot : getOutputMainSlots()) {
-            inv.setItem(slot, BlockStorage.getInventory(b).getItemInSlot(slot));
-        }
-        return inv;
-    }
-
-
     protected boolean fits(Block b, ItemStack[] items) {
-        return inject(b).addItem(items).isEmpty();
+        BlockMenu menu = BlockStorage.getInventory(b);
+        if (menu == null) {
+            return false;
+        }
+        // 用纯计算校验（MachineIO），不再创建临时 Bukkit Inventory——后者在异步 ticker
+        // 线程中调用 Bukkit.createInventory 不安全，且每次 tick 分配大对象有 GC 压力。
+        return MachineIO.fits(menu, getOutputMainSlots(), items);
     }
 
 
     protected void pushMainItems(Block b, ItemStack[] items) {
-        Inventory inv = inject(b);
-        inv.addItem(items);
-        for (int slot : getOutputMainSlots()) {
-            BlockStorage.getInventory(b).replaceExistingItem(slot, inv.getItem(slot));
+        BlockMenu menu = BlockStorage.getInventory(b);
+        if (menu == null) {
+            return;
         }
-    }
-
-
-    private Inventory injectSub(Block b) {
-        int size = BlockStorage.getInventory(b).toInventory().getSize();
-        Inventory inv = Bukkit.createInventory(null, size);
-        for (int i = 0; i < size; i++) {
-            inv.setItem(i, CustomItemStack.create(Material.COMMAND_BLOCK, " &4ALL YOUR PLACEHOLDERS ARE BELONG TO US"));
-        }
-        for (int slot : getOutputSubSlots()) {
-            inv.setItem(slot, BlockStorage.getInventory(b).getItemInSlot(slot));
-        }
-        return inv;
+        MachineIO.push(menu, getOutputMainSlots(), items);
     }
 
 
     protected void pushSubItems(Block b, DefaultSubRecipe recipe) {
-        if (recipe != null && willOutput(recipe) && fits(b, new ItemStack[]{recipe.getItem()})) {
-            Inventory inv = injectSub(b);
-            inv.addItem(recipe.getItem());
-            for (int slot : getOutputSubSlots()) {
-                BlockStorage.getInventory(b).replaceExistingItem(slot, inv.getItem(slot));
-            }
+        if (recipe == null || recipe.getItem() == null) {
+            return;
+        }
+        BlockMenu menu = BlockStorage.getInventory(b);
+        if (menu == null) {
+            return;
+        }
+        ItemStack item = recipe.getItem();
+        // 副产物放入副输出槽；fits 检查也必须针对副输出槽（原实现误用主输出槽，导致
+        // 副槽满时仍尝试放入而丢失物品）。
+        if (willOutput(recipe) && MachineIO.fits(menu, getOutputSubSlots(), new ItemStack[]{item})) {
+            MachineIO.push(menu, getOutputSubSlots(), new ItemStack[]{item});
         }
     }
 
@@ -389,26 +378,45 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
 
         } else {
 
+            BlockMenu menu = BlockStorage.getInventory(b);
+            if (menu == null) {
+                return;
+            }
             MachineRecipe r = null;
             Map<Integer, Integer> found = new HashMap<>();
             for (MachineRecipe recipe : this.recipes) {
-
+                found.clear();
+                boolean matched = true;
                 for (ItemStack input : recipe.getInput()) {
+                    if (input == null) {
+                        continue;
+                    }
+                    int needed = input.getAmount();
+                    int matchedSlot = -1;
                     for (int slot : getInputSlots()) {
-                        if (SlimefunUtils.isItemSimilar(BlockStorage.getInventory(b).getItemInSlot(slot), input, true)) {
-                            if (input != null) {
-                                found.put(slot, input.getAmount());
-                            }
+                        if (found.containsKey(slot)) {
+                            // 每个输入槽只匹配一个配方输入，避免重复计数导致刷物品
+                            continue;
+                        }
+                        ItemStack slotItem = menu.getItemInSlot(slot);
+                        if (slotItem != null
+                                && slotItem.getAmount() >= needed
+                                && SlimefunUtils.isItemSimilar(slotItem, input, true)) {
+                            matchedSlot = slot;
+                            break;
                         }
                     }
+                    if (matchedSlot < 0) {
+                        matched = false;
+                        break;
+                    }
+                    found.put(matchedSlot, needed);
                 }
 
-                if (found.size() == (recipe.getInput()).length) {
-
+                if (matched) {
                     r = recipe;
                     break;
                 }
-                found.clear();
             }
             if (r != null) {
 
@@ -416,7 +424,7 @@ public abstract class DefaultGUI extends SlimefunItem implements InventoryBlock,
                     return;
                 }
                 for (Map.Entry<Integer, Integer> entry : found.entrySet()) {
-                    BlockStorage.getInventory(b).consumeItem(entry.getKey(), entry.getValue());
+                    menu.consumeItem(entry.getKey(), entry.getValue());
                 }
                 processing.put(b, r);
                 progress.put(b, r.getTicks());
