@@ -82,6 +82,8 @@
 5. **`harvestPlant`：`getItem(bush)` 为 null 时跳过 `store`**，避免传 null。
 6. **`onGenerate`：berry/tree 列表为空时跳过**，避免 `nextInt(0)` 崩溃。
 7. **核验 BE 食物配方**：`BEFoodRegistry` 引用的 fruit id 全部已在 `BEPlants`/`BETrees`/主包（PEANUT/ICE_CUBE）注册，不存在 `getItem` 返回 null 导致的"空配方刷物品"；ROSE/REED 因 texture 哈希截断需**保留注册**（否则对应 Juice 配方变空会被空手合成刷物品），头显异常属遗留显示瑕疵。
+8. **treeFruits 补全 BE 树**：原 `registerItems` 末尾仅填主包树，BE 树果右键采集失效（`harvestFruit` 判断 `treeFruits`）；BE 注册后重新填充（含 BE），并新增 `isTreeFruit` 供 `dropFruitFromTree` 做 O(1) 判断（原遍历 `getTrees()` 在砍树高频时为 27×trees 次比较）。
+9. **GoldKeLa 配方防护**：`FERTILIZER_WHEAT`（Slimefun 原版物品）缺失时跳过注册，避免配方槽变空被空手合成刷物品。
 
 **物品流转结论**：机器输入消耗（数量校验、槽位不重复）、产出（`fits` 检查）、副产物（副槽 `fits`）、采集（`clone`+`drop`）、食用（同步扣除）等路径均已核对，无刷物品 / 无凭空消失。加工中被破坏机器会损失正在加工的材料，与原版 Slimefun 行为一致（非本插件缺陷）。
 
@@ -110,3 +112,5 @@ bash test/test.sh   # 9 维度 47 项，47/47 通过
 10. `chore(privacy)`: 移除 bstats 匿名统计
 11. `fix(items)`: 配方正确性 / 新树苗映射 / 死代码清理
 12. `fix(stability)`: 机器并发安全 + 物品防消失/防吞 + tick 残留清理
+13. `fix(stability,perf)`: treeFruits 补全 BE 树 + dropFruitFromTree 优化 + 空防护
+14. `fix`: GoldKeLa 配方防护 FERTILIZER_WHEAT 缺失
