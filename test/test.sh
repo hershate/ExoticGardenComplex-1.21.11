@@ -32,7 +32,7 @@ SETTINGS="$HOME/maven-settings.xml"
 SARGS=(); [ -f "$SETTINGS" ] && SARGS=(-s "$SETTINGS")
 
 REFJAR="$HOME/.m2/repository/com/github/slimefun/Slimefun/4.9.5/Slimefun-4.9.5.jar"
-ADDONJAR="target/ExoticGardenComplex-1.21.11-1.2.0.jar"
+ADDONJAR="target/ExoticGardenComplex-1.21.11-1.2.1.jar"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
 # ---------- 计数 ----------
