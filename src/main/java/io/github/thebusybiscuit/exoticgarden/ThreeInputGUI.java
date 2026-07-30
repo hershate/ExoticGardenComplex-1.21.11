@@ -331,6 +331,9 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
     }
 
     protected DefaultSubRecipe selectSubItem(List<DefaultSubRecipe> subRecipes) {
+        if (subRecipes == null || subRecipes.isEmpty()) {
+            return null;
+        }
         int random = (int) (Math.random() * subRecipes.size());
         return subRecipes.get(random);
     }

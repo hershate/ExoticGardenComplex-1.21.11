@@ -271,6 +271,12 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         // BE 注册的草掉落条目需再次应用 grass-drops 过滤（BE 注册晚于 registerItems 的首次过滤，
         // 否则管理员关闭 grass-drops.<BE 条目> 不生效）。
         applyGrassDropsFilter();
+        // 重新填充 treeFruits（此时 trees 已含 BE 树），使 harvestFruit/dropFruitFromTree
+        // 能识别所有树果（否则 BE 树果右键采集失效）。
+        treeFruits.clear();
+        for (Tree tree : trees) {
+            treeFruits.add(tree.getFruitID());
+        }
         cfg.save();
         //HeadDropFix.onHeadDropFix();
         BECommands.onCommandsRegister();
@@ -1630,6 +1636,10 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
         magicalEssence.setRecipeOutput(item.clone());
         magicalEssence.register(this);
         new CustomFood(foodItemGroup, new SlimefunItemStack(upperCase + "_SNACK", "f22743a662107366e15308b02f8035028d452fcac76968f6d7ee6d7c8f2573ec", name + "奇趣零食", "", "&7&o恢复 &b&o" + "5.0" + " &7&o点饥饿值"), new ItemStack[]{getItem(enumStyle + "_ESSENCE"), getItem("BLACK_PEPPER"),  SlimefunItems.SALT.item(), new ItemStack(Material.POTATO), new ItemStack(Material.BROWN_MUSHROOM), null, null, null, null}, 10).register(this);
+    }
+
+    public boolean isTreeFruit(@Nonnull String id) {
+        return treeFruits.contains(id);
     }
 
     public void harvestFruit(Block fruit) {

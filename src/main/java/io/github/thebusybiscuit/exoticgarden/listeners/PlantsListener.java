@@ -563,15 +563,12 @@ public class PlantsListener implements Listener {
                     Location loc = fruit.getLocation();
                     SlimefunItem check = BlockStorage.check(loc);
                     if (check == null) continue;
-                    for (Tree tree : ExoticGarden.getTrees()) {
-                        if (check.getId().equalsIgnoreCase(tree.getFruitID())) {
-                            BlockStorage.clearBlockInfo(loc);
-                            ItemStack fruits = check.getItem();
-                            fruit.getWorld().playEffect(loc, Effect.STEP_SOUND, Material.OAK_LEAVES);
-                            fruit.getWorld().dropItemNaturally(loc, fruits);
-                            fruit.setType(Material.AIR, false);
-                            break;
-                        }
+                    if (ExoticGarden.getInstance().isTreeFruit(check.getId())) {
+                        BlockStorage.clearBlockInfo(loc);
+                        ItemStack fruits = check.getItem();
+                        fruit.getWorld().playEffect(loc, Effect.STEP_SOUND, Material.OAK_LEAVES);
+                        fruit.getWorld().dropItemNaturally(loc, fruits);
+                        fruit.setType(Material.AIR, false);
                     }
                 }
             }

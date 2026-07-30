@@ -71,6 +71,20 @@
 6. **onDisable 不再置空集合**：避免卸载期间残余事件回调 NPE。
 7. **新玩家不即时落盘**：`PlayerAlcohol` 构造器移除磁盘写，退出时统一保存，减少 join IO。
 
+## 九、第三轮深挖：高负载并发与物品流转（2026-07-30）
+
+针对"长时间高负载、多用户高频使用"与"刷物品 / 物品凭空消失"专项排查：
+
+1. **机器 `processing`/`progress` 改 `ConcurrentHashMap`**：Slimefun ticker 按区块并行 tick，不同机器方块会被多个线程同时访问这两个 static 表；原 `HashMap` 并发写入会丢数据 / 损坏结构。
+2. **机器完成分支加 `fits` 检查**：加工完成时若输出槽放不下，保持处理状态等下次 tick 重试，避免产物凭空消失（原 `pushMainItems` 直接 push 会丢弃放不下的部分）。
+3. **机器 tick 开头统一取 `BlockMenu` 并判 null**：机器被爆炸等非破坏事件移除后，清理残留 `processing`/`progress`，避免 NPE 与长时间运行的内存泄漏。
+4. **Kitchen 消耗范围 = 匹配范围（`matchCount`）**：原消耗循环遍历全部 9 格，配方数组 < 9 时会误吞 dispenser 里多余物品。
+5. **`harvestPlant`：`getItem(bush)` 为 null 时跳过 `store`**，避免传 null。
+6. **`onGenerate`：berry/tree 列表为空时跳过**，避免 `nextInt(0)` 崩溃。
+7. **核验 BE 食物配方**：`BEFoodRegistry` 引用的 fruit id 全部已在 `BEPlants`/`BETrees`/主包（PEANUT/ICE_CUBE）注册，不存在 `getItem` 返回 null 导致的"空配方刷物品"；ROSE/REED 因 texture 哈希截断需**保留注册**（否则对应 Juice 配方变空会被空手合成刷物品），头显异常属遗留显示瑕疵。
+
+**物品流转结论**：机器输入消耗（数量校验、槽位不重复）、产出（`fits` 检查）、副产物（副槽 `fits`）、采集（`clone`+`drop`）、食用（同步扣除）等路径均已核对，无刷物品 / 无凭空消失。加工中被破坏机器会损失正在加工的材料，与原版 Slimefun 行为一致（非本插件缺陷）。
+
 ## 构建与验证
 
 ```bash
@@ -95,3 +109,4 @@ bash test/test.sh   # 9 维度 47 项，47/47 通过
 9. `feat(data)`: 醉酒数据改用正版 UUID 存储
 10. `chore(privacy)`: 移除 bstats 匿名统计
 11. `fix(items)`: 配方正确性 / 新树苗映射 / 死代码清理
+12. `fix(stability)`: 机器并发安全 + 物品防消失/防吞 + tick 残留清理
