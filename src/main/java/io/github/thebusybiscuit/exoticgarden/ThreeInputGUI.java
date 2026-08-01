@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -68,6 +69,11 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
     // 已解析的 Slimefun 物品按方块缓存：避免每 tick 调用 BlockStorage.check（定位→id→SF 物品）。
     // 机器方块的 SF 物品在其生命周期内不变；随方块销毁 / 菜单失效一同清理（与 idleMatchCache 同生命周期）。
     private final Map<Block, SlimefunItem> sfItemCache = new ConcurrentHashMap<>();
+
+    // 方块 Location 按方块缓存：加工 tick 中能量读取/写回需要 Location（REF 的 EnergyNetComponent
+    // 仅有 Location 重载，无 Block 重载）。原每 tick 两次 b.getLocation() 各分配一个 Location 对象；
+    // 机器方块不移动，缓存其 Location 可消除稳态分配。随方块销毁 / 菜单失效一同清理。
+    private final Map<Block, Location> locationCache = new ConcurrentHashMap<>();
 
     // 进度条基础物品 / 副产物列表的懒缓存（各子类返回值恒定，缓存零风险）。
     private ItemStack cachedProgressBar;
@@ -149,6 +155,7 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
                 ThreeInputGUI.processing.remove(b);
                 ThreeInputGUI.this.idleMatchCache.remove(b);
                 ThreeInputGUI.this.sfItemCache.remove(b);
+                ThreeInputGUI.this.locationCache.remove(b);
             }
         });
         addItemHandler(new BlockTicker() {
@@ -383,6 +390,7 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
             progress.remove(b);
             idleMatchCache.remove(b);
             sfItemCache.remove(b);
+            locationCache.remove(b);
             return;
         }
         if (isProcessing(b)) {
@@ -419,10 +427,23 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
                 // 各调用一次 BlockStorage.check 共 3 次，此处合并为 1 次且按方块缓存）。
                 SlimefunItem sfItem = resolveSfItem(b);
                 if (sfItem instanceof EnergyNetComponent component && component.isChargeable()) {
-                    if (component.getCharge(b.getLocation()) < getEnergyConsumption()) {
-                        return;
+                    // 能量扣除：读→比较→写回。
+                    // 修正：原 component.addCharge(loc, -consumption) 在 REF(4.9.5) 的 addCharge 中有
+                    //   Validate.isTrue(charge > 0) —— 传入负数会抛 IllegalArgumentException（每 tick 必崩且不扣能量）。
+                    // 改用 getCharge(loc,data) + setCharge(loc,data,...) 的 Config 重载：既修正语义（真正扣除能量），
+                    // 又复用同一次 BlockStorage.getLocationInfo 查询（setCharge 内部的“是否变化”比较也用这个 data，
+                    // 不再触发 removeCharge/addCharge 路径里的二次 getLocationInfo）。Location 用按方块缓存，零稳态分配。
+                    int consumption = getEnergyConsumption();
+                    Location loc = resolveLocation(b);
+                    Config data = BlockStorage.getLocationInfo(loc);
+                    if (data == null) {
+                        return; // 方块存储瞬态缺失（刚放置未写入等），跳过本 tick 等下次重试，不抛异常。
                     }
-                    component.addCharge(b.getLocation(), -getEnergyConsumption());
+                    int charge = component.getCharge(loc, data);
+                    if (charge < consumption) {
+                        return; // 能量不足，保持进度，等下次 tick 重试
+                    }
+                    component.setCharge(loc, data, charge - consumption);
                 }
                 progress.put(b, timeleft - 1);
 
@@ -524,6 +545,24 @@ public abstract class ThreeInputGUI extends SlimefunItem implements InventoryBlo
             sfItemCache.put(b, item);
         }
         return item;
+    }
+
+    /**
+     * 解析方块的 {@link Location}（按方块缓存）。
+     *
+     * <p>机器方块在其生命周期内不移动，能量读写所需的 Location 可缓存复用，避免每 tick
+     * {@code b.getLocation()} 分配。Location 仅作为只读键传给 BlockStorage（读取 world + 区块坐标），
+     * 不被修改，缓存安全。随方块销毁 / 菜单失效（{@link #tick} 中 menu==null）一同 {@code remove}，
+     * 生命周期与 {@link #sfItemCache} 完全一致。</p>
+     */
+    private Location resolveLocation(Block b) {
+        Location cached = locationCache.get(b);
+        if (cached != null) {
+            return cached;
+        }
+        Location loc = b.getLocation();
+        locationCache.put(b, loc);
+        return loc;
     }
 
     /**
