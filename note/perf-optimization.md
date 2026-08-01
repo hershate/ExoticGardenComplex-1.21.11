@@ -140,4 +140,8 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
 2. `perf(listener)`: PlantsListener.onInteract SlimefunTag 按 Material 记忆化
 3. `perf(items)`: Berry.getItem/getBushItem 懒缓存（harvestPlant 改用 getBushItem）
 4. `perf(benchmark)`: 新增 SlimefunTag / getItem / 能量结算对照与三项正确性断言
-5. `docs/chore`: 报告、版本 1.3.0、test.sh 产物名、note 文档更新
+5. `chore(release)`: 1.2.1 → 1.3.0（pom + test.sh 产物名）
+6. `docs(note)`: 1.3.0 发布说明 + 性能报告 + perf/hardening/testing/README 更新
+7. `perf(food)`: FoodListener.getByItem 去除多余克隆（getByItem 不读 amount）
+8. `perf(benchmark)`: 新增 getByItem 对照与正确性断言（等价性 8→9 项）
+9. `docs(note)`: 补充 getByItem 优化 + 等价性断言 8→9 项
