@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.Bukkit;
@@ -63,6 +64,10 @@ public class PlantsListener implements Listener {
 
     private static final Map<String, SlimefunTag> nameLookup = new HashMap<>();
     private static final SlimefunTag[] valuesCache = SlimefunTag.values();
+    // “某 Material 是否被任意 SlimefunTag 标记”的结果缓存。SlimefunTag 在 Slimefun 加载后固定不变，
+    // 故每个 Material 的判定结果恒定，可永久缓存，将 onInteract 中“遍历全部 tag 逐一 isTagged”
+    // 的 O(标签数) 降为 O(1) 命中。ConcurrentHashMap 保证事件线程并发安全。
+    private static final Map<Material, Boolean> sfTaggedCache = new ConcurrentHashMap<>();
     private final Config cfg;
     private final ExoticGarden plugin;
     private final BlockFace[] faces = {BlockFace.NORTH, BlockFace.NORTH_EAST, BlockFace.EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH, BlockFace.SOUTH_WEST, BlockFace.WEST, BlockFace.NORTH_WEST};
@@ -495,9 +500,9 @@ public class PlantsListener implements Listener {
         Material offHand = e.getPlayer().getInventory().getItemInOffHand().getType();
 
         // 手持受 SlimefunTag 约束的方块（如受重力影响方块）时不触发采摘，交还原版行为。
-        // 原 nameLookup 是永不读取的死代码，已移除。
-        for (SlimefunTag tag : valuesCache) {
-            if (tag.isTagged(mainHand) || tag.isTagged(offHand)) return;
+        // 原“遍历全部 tag 逐一 isTagged”是每次右键的 O(标签数) 开销；改为按 Material 记忆化后 O(1) 命中。
+        if (isSlimefunTaggedMaterial(mainHand) || isSlimefunTaggedMaterial(offHand)) {
+            return;
         }
 
         if (Slimefun.getProtectionManager().hasPermission(e.getPlayer(), clickedBlock.getLocation(), Interaction.BREAK_BLOCK)) {
@@ -550,6 +555,28 @@ public class PlantsListener implements Listener {
         }
 
         return blocksToRemove;
+    }
+
+    /**
+     * 判断某 Material 是否被任意 {@link SlimefunTag} 标记（按 Material 记忆化）。
+     *
+     * <p>SlimefunTag 在 Slimefun 加载后不可变，故每个 Material 的结果恒定。首次查询遍历全部标签，
+     * 之后命中 {@link #sfTaggedCache}。Material 枚举有界（约千项），缓存规模天然有上限。</p>
+     */
+    private static boolean isSlimefunTaggedMaterial(Material material) {
+        Boolean cached = sfTaggedCache.get(material);
+        if (cached != null) {
+            return cached;
+        }
+        boolean result = false;
+        for (SlimefunTag tag : valuesCache) {
+            if (tag.isTagged(material)) {
+                result = true;
+                break;
+            }
+        }
+        sfTaggedCache.put(material, result);
+        return result;
     }
 
     private void dropFruitFromTree(Block block) {
