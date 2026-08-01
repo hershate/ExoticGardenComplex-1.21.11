@@ -100,7 +100,10 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
 2. **物品解析（Berry.getItem / getBushItem）**：`Berry.getItem()` 非 ORE_PLANT 时每次 `SlimefunItem.getById(id).getItem()`
    （被采集、植物生长高频调用），`harvestPlant` 每次又 `getItem(toBush())`；改为 `Berry` 上的懒缓存字段
    `cachedPlantItem`/`cachedBushItem`。基准（getItem：注册表查找 vs 缓存字段）**10.9→3.7 ns（约 2.9×）**。
-3. **机器能量消耗路径（DefaultGUI/ThreeInputGUI）—— 兼稳定性修复**：
+3. **getByItem 物品识别（FoodListener.onUse 每次交互）**：`getByItem(CustomItemStack.create(hand,1))` 改为直接
+   `getByItem(hand)`——REF 的 `getByItem` 只读 Material + PDC(SF id)，不读 amount，故克隆多余。基准（先 clone vs 直接）
+   **31.2→13.5 ns（约 2.3×）**。
+4. **机器能量消耗路径（DefaultGUI/ThreeInputGUI）—— 兼稳定性修复**：
    - **修复 Bug**：原 `component.addCharge(b.getLocation(), -getEnergyConsumption())` 在 REF（4.9.5）的 `addCharge`
      中因 `Validate.isTrue(charge>0)` 抛 `IllegalArgumentException`（负数）——所有可充能机器每加工 tick 必抛
      异常且不扣能量。改为 `getCharge(loc,data)` + `setCharge(loc,data,charge-consumption)` 单次读路径，
@@ -111,7 +114,7 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
      `getLocationInfo` 可被 JIT 公共子表达式消除（CSE）而无法忠实量化（生产中为不透明库方法、不可合并），
      生产收益为“每加工机器每 tick 少一次 BlockStorage 查询 + 零 Location 分配”，属定性收益。
 
-离线等价性断言由 5 项增至 **8 项**（新增 能量结算 / SlimefunTag / getItem 缓存）。
+离线等价性断言由 5 项增至 **9 项**（新增 能量结算 / SlimefunTag / getItem 缓存 / getByItem 克隆）。
 
 ## 提交结构（细粒度 commit）
 

@@ -3,7 +3,7 @@
 > 日期：2026-08-01
 > 分支：`feature/perf-optimization-2`
 > 红线：不降低安全性 / 稳定性 / 兼容性；不引入新漏洞；玩家可见行为不变。
-> 判据：`mvn clean package -DskipTests` → BUILD SUCCESS；静态测试 10 维度 51/51；离线基准 8 项等价性断言全 PASS。
+> 判据：`mvn clean package -DskipTests` → BUILD SUCCESS；静态测试 10 维度 51/51；离线基准 9 项等价性断言全 PASS。
 
 ## 一、背景
 
@@ -85,11 +85,22 @@ if (isSlimefunTaggedMaterial(mainHand) || isSlimefunTaggedMaterial(offHand)) ret
 
 基准（getItem：SF 注册表查找 vs 缓存字段）：**10.9 → 3.7 ns（约 2.9×）**。
 
+### 4. getByItem 物品识别（FoodListener.onUse，每次交互）—— 性能优化
+
+**问题**：`FoodListener.onUse`（玩家交互事件，极高频；饥饿时触发）每次都先
+`CustomItemStack.create(handItem, 1)`（克隆物品 + amount 置 1）再 `SlimefunItem.getByItem(...)`。
+
+**优化**：REF 的 `SlimefunItem.getByItem(ItemStack)` 只读 `Material`（快速负向 Set 查找）+ `PersistentDataContainer`
+中的 SF id（`getItemData`）+ `getById(id)`，并校验 Material 与模板一致——**全程不读 amount**。故 `create(hand,1)`
+的克隆纯属性能浪费。改为直接 `getByItem(handItem)`（主手 / 副手两处），删除多余的 `CustomItemStack` import。
+
+基准（getByItem：先 clone vs 直接）：**31.2 → 13.5 ns（约 2.3×）**。
+
 ## 三、方法学
 
 延续 1.1.0/1.2.0 的**忠实复刻**策略：以 `SimItem` 等最小模型把“优化前算法”（`Algorithms.old*`）与
 “优化后算法”（`Algorithms.new*`）实现成可对照两套代码，相同输入下计时 + 大规模随机序列断言两者输出
-**完全一致**。新增三个对照（能量结算 / SlimefunTag / getItem）与三项正确性断言。代码见 [benchmark/](../../../benchmark/)，
+**完全一致**。新增四个对照（能量结算 / SlimefunTag / getItem / getByItem）与四项正确性断言。代码见 [benchmark/](../../../benchmark/)，
 由 `bash benchmark/run.sh [save]` 复现。
 
 ### 局限（必须如实说明）
@@ -109,6 +120,7 @@ if (isSlimefunTaggedMaterial(mainHand) || isSlimefunTaggedMaterial(offHand)) ret
 |---|---|---|---|
 | SlimefunTag 材质判定（每次右键，遍历 tag → 记忆化） | 84.3 | 5.4 | **15.63×** |
 | getItem（getById Map 查找 → Berry 缓存字段） | 10.9 | 3.7 | **2.92×** |
+| getByItem（先 clone(hand,1) → 直接 hand） | 31.2 | 13.5 | **2.32×** |
 | 能量结算（少一次 BlockStorage 查询 + 零 Location 分配） | — | — | 定性（sim 受 JIT CSE 限制，见 §二.1）；正确性等价 PASS |
 
 ### 与既有优化（未改动，回归确认未退化）
@@ -125,7 +137,7 @@ if (isSlimefunTaggedMaterial(mainHand) || isSlimefunTaggedMaterial(offHand)) ret
 
 ## 五、正确性保障
 
-离线基准 8 项等价性断言全部 **PASS**（[Benchmark.main](../../../benchmark/src/Benchmark.java) 任一失败即
+离线基准 9 项等价性断言全部 **PASS**（[Benchmark.main](../../../benchmark/src/Benchmark.java) 任一失败即
 `System.exit(1)`，被 [test/test.sh](../../../test/test.sh) 维度 10 纳入）：
 
 | 断言 | 含义 |
@@ -136,6 +148,7 @@ if (isSlimefunTaggedMaterial(mainHand) || isSlimefunTaggedMaterial(offHand)) ret
 | **能量结算**（1.3.0 新增） | 单次读 + `setCharge` 与 `removeCharge` 在任意“初始电量×消耗”下扣除结果完全一致（含“电量不足不扣”） |
 | **SlimefunTag**（1.3.0 新增） | 记忆化判定与逐 tag 判定对任意 material 返回相同布尔 |
 | **getItem 缓存**（1.3.0 新增） | Berry 缓存字段值与 `getById` 注册表查找完全一致 |
+| **getByItem 克隆**（1.3.0 新增） | `getByItem` 不读 amount，故 `clone(hand,1)` 与直接 `hand` 结果完全一致（含非 SF / 快速负向路径） |
 
 - 编译：`mvn clean package -DskipTests` → BUILD SUCCESS，产物 `ExoticGardenComplex-1.21.11-1.3.0.jar`。
 - 静态测试：10 维度 **51/51**（迁移完整性、REF 兼容性、jar 结构、源码完整性、基准正确性均未被破坏）。

@@ -15,5 +15,5 @@
 - **依赖**：附属编译/运行仅依赖粘液科技一个插件 —— 本仓库 `REF/Slimefun4.1`（= `com.github.slimefun:Slimefun:4.9.5`，第三方非官方分支）。
 - **构建**：先 `cd REF/Slimefun4.1 && mvn clean install -DskipTests` 装入本地仓库，再 `mvn clean package -DskipTests` 编译附属，产物 `target/ExoticGardenComplex-1.21.11-1.3.0.jar`。
 - **测试**：`bash test/test.sh`（10 维度 51 项静态检查，含基准正确性，51/51 通过）。
-- **基准**：`bash benchmark/run.sh [save]`（算法层离线基准，新旧算法等价性 8 项断言 + 计时）。
-- **当前版本**：1.3.0（1.2.1 之后：事件路径优化 [SlimefunTag 记忆化约 15.6×、getItem 缓存约 2.9×] + 修复机器能量消耗 Bug [原 `addCharge(-x)` 每 tick 抛异常且不耗电]）。源码层编译通过、静态测试与离线基准等价性断言全绿；**未做实机运行回归**。
+- **基准**：`bash benchmark/run.sh [save]`（算法层离线基准，新旧算法等价性 9 项断言 + 计时）。
+- **当前版本**：1.3.0（1.2.1 之后：事件路径优化 [SlimefunTag 记忆化约 15.6×、getItem 缓存约 2.9×、getByItem 去多余克隆约 2.3×] + 修复机器能量消耗 Bug [原 `addCharge(-x)` 每 tick 抛异常且不耗电]）。源码层编译通过、静态测试与离线基准等价性断言全绿；**未做实机运行回归**。
