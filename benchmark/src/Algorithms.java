@@ -691,4 +691,29 @@ public final class Algorithms {
     static Integer newGetByItem(GetByItemSim sim, SimItem hand) {
         return getByItemSim(sim, hand);
     }
+
+    // =============================================================
+    // FoodListener.onPlace / onEquip 物品识别（每次放方块 / 护甲点击，1.3.0）
+    //   生产：原写法 item = getByItem(hand); if (item instanceof EGPlant && hand.type==PLAYER_HEAD) cancel;
+    //   即“先做昂贵的 getByItem，再把最廉价的 type 判断后置”。EGPlant 物品均为 PLAYER_HEAD，
+    //   非 PLAYER_HEAD 不可能是 EGPlant，故把 type 判断前置短路即可跳过绝大多数事件的 getByItem。
+    //   建模：PLAYER_HEAD_MAT 代理 Material.PLAYER_HEAD；(id&1)!=0 代理 instanceof EGPlant。
+    //   旧 = 总是 getByItem；新 = 仅 PLAYER_HEAD 才 getByItem。
+    // =============================================================
+    static final int PLAYER_HEAD_MAT = 99; // 代理 Material.PLAYER_HEAD
+
+    /** 旧：每次都 getByItem，再判 EGPlant && PLAYER_HEAD。返回“是否取消”。 */
+    static boolean oldPlaceEquip(GetByItemSim sim, SimItem hand) {
+        Integer item = getByItemSim(sim, hand);
+        return item != null && hand.material == PLAYER_HEAD_MAT && (item & 1) != 0;
+    }
+
+    /** 新：先按材质短路，仅 PLAYER_HEAD 才 getByItem。 */
+    static boolean newPlaceEquip(GetByItemSim sim, SimItem hand) {
+        if (hand.material != PLAYER_HEAD_MAT) {
+            return false;
+        }
+        Integer item = getByItemSim(sim, hand);
+        return item != null && (item & 1) != 0;
+    }
 }

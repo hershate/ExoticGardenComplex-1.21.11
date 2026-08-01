@@ -5,50 +5,54 @@
 JVM: 21.0.12 | processors: 16
 
 --- 配方匹配（3 输入 / 35 配方，每次 = 一个机器一个 tick 的 idle 分支）---
-  不匹配·旧(每tick全扫)                        202.5 ns/op   (1.00x)
-  不匹配·新冷启动                              263.8 ns/op   (0.77x)
-  不匹配·新命中缓存(稳态)                          26.6 ns/op   (7.61x)
-  命中·旧(每tick全扫)                         429.7 ns/op   (1.00x)
-  命中·新命中缓存(稳态)                           43.6 ns/op   (9.86x)
-  空输入·旧                                 283.0 ns/op   (1.00x)
-  空输入·新命中缓存                              13.4 ns/op   (21.14x)
+  不匹配·旧(每tick全扫)                        195.5 ns/op   (1.00x)
+  不匹配·新冷启动                              259.1 ns/op   (0.75x)
+  不匹配·新命中缓存(稳态)                          25.9 ns/op   (7.54x)
+  命中·旧(每tick全扫)                         392.4 ns/op   (1.00x)
+  命中·新命中缓存(稳态)                           46.0 ns/op   (8.54x)
+  空输入·旧                                 240.6 ns/op   (1.00x)
+  空输入·新命中缓存                              13.0 ns/op   (18.44x)
 
 --- 配方匹配（1 输入 / 3 配方）---
-  不匹配·旧(每tick全扫)                         13.1 ns/op   (1.00x)
-  不匹配·新命中缓存(稳态)                           8.6 ns/op   (1.53x)
+  不匹配·旧(每tick全扫)                         12.8 ns/op   (1.00x)
+  不匹配·新命中缓存(稳态)                           8.6 ns/op   (1.50x)
 
 --- fits（输出槽容量校验，4 槽位）---
-  fits·旧(clone 模拟)                       78.9 ns/op   (1.00x)
-  fits·新(int 金额零 clone)                  29.8 ns/op   (2.65x)
+  fits·旧(clone 模拟)                       78.7 ns/op   (1.00x)
+  fits·新(int 金额零 clone)                  28.2 ns/op   (2.79x)
 
 --- 采集：berry 按 id 查表（~60 项）---
-  berry·旧(线性 equalsIgnoreCase)          152.3 ns/op   (1.00x)
-  berry·新(HashMap)                        2.6 ns/op   (57.57x)
+  berry·旧(线性 equalsIgnoreCase)          153.1 ns/op   (1.00x)
+  berry·新(HashMap)                        2.6 ns/op   (59.85x)
 
 --- 副产物 getSubRecipes()：每次重建 vs 缓存（35 项）---
-  subRecipes·旧(每次重建)                    124.3 ns/op   (1.00x)
-  subRecipes·新(缓存)                       27.1 ns/op   (4.59x)
+  subRecipes·旧(每次重建)                    128.1 ns/op   (1.00x)
+  subRecipes·新(缓存)                       27.3 ns/op   (4.70x)
 
 --- tick 处理：进度条显示构建（每机器每 tick）---
-  进度条·旧(每tick重建)                        200.8 ns/op   (1.00x)
-  进度条·新(无人查看·常态)                          3.3 ns/op   (60.30x)
-  进度条·新(有人查看)                           172.6 ns/op   (1.16x)
+  进度条·旧(每tick重建)                        245.9 ns/op   (1.00x)
+  进度条·新(无人查看·常态)                          3.0 ns/op   (80.77x)
+  进度条·新(有人查看)                           181.2 ns/op   (1.36x)
 
 --- SF 物品解析：BlockStorage.check vs 按方块缓存 ---
   SFItem·旧(BlockStorage.check)            6.6 ns/op   (1.00x)
-  SFItem·新(按方块缓存)                         4.1 ns/op   (1.59x)
+  SFItem·新(按方块缓存)                         3.9 ns/op   (1.69x)
 
 --- SlimefunTag 材质判定（每次右键：手持物是否受 tag 约束）---
-  SlimefunTag·旧(遍历全部 tag)                90.1 ns/op   (1.00x)
-  SlimefunTag·新(按 material 记忆化)           5.7 ns/op   (15.79x)
+  SlimefunTag·旧(遍历全部 tag)                85.9 ns/op   (1.00x)
+  SlimefunTag·新(按 material 记忆化)           5.4 ns/op   (15.97x)
 
 --- 物品解析（getItem：SF 注册表查找 vs Berry 缓存字段）---
-  getItem·旧(getById Map 查找)               9.3 ns/op   (1.00x)
-  getItem·新(缓存字段读取)                       3.9 ns/op   (2.39x)
+  getItem·旧(getById Map 查找)               8.9 ns/op   (1.00x)
+  getItem·新(缓存字段读取)                       3.1 ns/op   (2.91x)
 
 --- getByItem 物品识别（FoodListener：先克隆 vs 直接）---
-  getByItem·旧(先 clone(hand,1))           31.2 ns/op   (1.00x)
-  getByItem·新(直接 hand)                   13.5 ns/op   (2.32x)
+  getByItem·旧(先 clone(hand,1))           22.9 ns/op   (1.00x)
+  getByItem·新(直接 hand)                   10.0 ns/op   (2.29x)
+
+--- getByItem 预过滤（onPlace/onEquip：总是 getByItem vs PLAYER_HEAD 短路）---
+  onPlace/onEquip·旧(总是 getByItem)         3.5 ns/op   (1.00x)
+  onPlace/onEquip·新(PLAYER_HEAD 短路)        1.4 ns/op   (2.54x)
 
 --- 正确性等价性断言 ---
   3输入 match 等价   : PASS
@@ -60,5 +64,6 @@ JVM: 21.0.12 | processors: 16
   SlimefunTag 等价   : PASS
   getItem 缓存等价   : PASS
   getByItem 克隆等价 : PASS
+  onPlace/onEquip等价: PASS
 
 (checksum=1290429923)
