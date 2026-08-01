@@ -70,18 +70,32 @@ public class FoodListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
-        SlimefunItem item = SlimefunItem.getByItem(e.getItemInHand());
-        if (item instanceof EGPlant && e.getItemInHand().getType() == Material.PLAYER_HEAD)
+        ItemStack hand = e.getItemInHand();
+        // EGPlant 物品均为 PLAYER_HEAD（经 getSkull 自定义纹理）；非 PLAYER_HEAD 不可能是 EGPlant，
+        // 直接返回，避免对每次放方块都 getByItem（PDC 读取 + 材质集合查找）。原条件
+        // “instanceof EGPlant && type==PLAYER_HEAD” 把最廉价的 type 判断后置，等价改为前置短路。
+        if (hand == null || hand.getType() != Material.PLAYER_HEAD) {
+            return;
+        }
+        SlimefunItem item = SlimefunItem.getByItem(hand);
+        if (item instanceof EGPlant) {
             e.setCancelled(true);
+        }
     }
 
     @EventHandler
     public void onEquip(InventoryClickEvent e) {
         if (e.getSlotType() != InventoryType.SlotType.ARMOR)
             return;
-        SlimefunItem item = SlimefunItem.getByItem(e.getCursor());
-        if (item instanceof EGPlant && e.getCursor().getType() == Material.PLAYER_HEAD)
+        ItemStack cursor = e.getCursor();
+        // 同 onPlace：仅 PLAYER_HEAD 才可能是 EGPlant，提前按材质短路，避免每次护甲点击都 getByItem。
+        if (cursor == null || cursor.getType() != Material.PLAYER_HEAD) {
+            return;
+        }
+        SlimefunItem item = SlimefunItem.getByItem(cursor);
+        if (item instanceof EGPlant) {
             e.setCancelled(true);
+        }
     }
 }
 
