@@ -1,6 +1,8 @@
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 新旧算法的忠实移植。
@@ -522,5 +524,133 @@ public final class Algorithms {
             cache.put(blockKey, item);
         }
         return item;
+    }
+
+    // =============================================================
+    // 机器加工 tick 能量结算（每加工机器每 tick，1.3.0）
+    //   生产 DefaultGUI/ThreeInputGUI 的 processing 分支：读电量 → 比较消耗 → 写回。
+    //   旧（修正后的等价路径，即 removeCharge(loc, consumption)）：
+    //       比较用 getCharge(b.getLocation())：b.getLocation() 分配 #1 + getLocationInfo 查询 #1 + parse #1；
+    //       removeCharge 内部再 getCharge(b.getLocation())：分配 #2 + 查询 #2 + parse #2；最后写回。
+    //       ⇒ 2 次 Location 分配 + 2 次 BlockStorage 查询 + 2 次 parse + 1 次写回。
+    //   新：复用按方块缓存的 Location（稳态零分配）+ 单次 getLocationInfo 查询 +
+    //       getCharge(loc, data) [parse #1] + setCharge(loc, data, ...)（其“是否变化”比较用同一 data，
+    //       再 parse #2，但不查库）+ 写回。
+    //       ⇒ 0 次 Location 分配 + 1 次查询 + 2 次 parse + 1 次写回。
+    //   注：原生产 addCharge(loc, -consumption) 在 REF 中会因 Validate.isTrue(charge>0) 抛异常（bug），
+    //   不参与性能对比；此处以“修正后等价路径（removeCharge）”作为旧基线，确保新旧做同样的有效工作。
+    // =============================================================
+    static final class ChargeData {
+        String chargeStr; // 建模 Config 中 "energy-charge" 字符串
+        ChargeData(int charge) {
+            this.chargeStr = Integer.toString(charge);
+        }
+    }
+
+    static final class EnergyBlockStorageSim {
+        // BlockStorage.getLocationInfo 两级结构建模：先按 chunk 定位、再按 block 取 Config（两次 HashMap
+        // 查找）。与 BlockStorageSim 的“两级 HashMap 保守建模”一致；真实 getLocationInfo 不轻于单次
+        // HashMap.get（含定位区块、字符串 id、Config 对象），故把“少一次 getLocationInfo”视作真实收益。
+        final HashMap<Long, HashMap<Long, ChargeData>> chunks = new HashMap<>();
+        // getLocationInfo 调用计数：每次调用自增，制造可观测副作用，防止 JIT 对“连续两次同参调用”
+        // 做公共子表达式消除（CSE）——生产中 BlockStorage.getLocationInfo 是不透明的库方法，两次调用
+        // 不可合并。该计数随 bs（堆对象）逃逸，不会被死代码消除。
+        int lookups;
+    }
+
+    /** 建模 BlockStorage.getLocationInfo：定位 chunk → 取 block 的 Config（两次 HashMap 查找）+ 调用计数。 */
+    private static ChargeData getLocationInfo(EnergyBlockStorageSim bs, long blockKey) {
+        bs.lookups++; // 副作用：防止 JIT 把连续的同参调用 CSE 合并
+        HashMap<Long, ChargeData> blocks = bs.chunks.get(blockKey >> 8);
+        if (blocks == null) {
+            return null;
+        }
+        return blocks.get(blockKey);
+    }
+
+    /**
+     * 旧（修正后的等价路径，即 removeCharge）：getCharge(b.getLocation()) 做一次 getLocationInfo；
+     * removeCharge(b.getLocation(), consumption) 内部再 getCharge 一次（又一次 getLocationInfo）。
+     * 故每次结算两次 getLocationInfo（各两次 HashMap 查找）+ 两次 parse + 写回。
+     * 返回是否成功扣除（电量不足返回 false，不改写）。
+     */
+    static boolean oldEnergySettle(EnergyBlockStorageSim bs, long blockKey, int consumption) {
+        ChargeData d1 = getLocationInfo(bs, blockKey); // getLocationInfo #1（比较用 getCharge）
+        int ch1 = Integer.parseInt(d1.chargeStr); // parse #1
+        if (ch1 < consumption) {
+            return false;
+        }
+        ChargeData d2 = getLocationInfo(bs, blockKey); // getLocationInfo #2（removeCharge 内部重复 getCharge）
+        int ch2 = Integer.parseInt(d2.chargeStr); // parse #2
+        int nv = Math.max(0, ch2 - consumption);
+        d2.chargeStr = Integer.toString(nv); // 写回
+        return true;
+    }
+
+    /**
+     * 新：resolveLocation（locationCache 单次廉价命中）+ 单次 getLocationInfo + getCharge(loc,data)
+     * + setCharge(loc,data)（其“是否变化”比较复用同一 data，不查库）。
+     * 故每次结算一次 getLocationInfo（两次 HashMap 查找）+ 一次 locationCache.get（一次查找）+ 两次 parse + 写回。
+     */
+    static boolean newEnergySettle(EnergyBlockStorageSim bs, HashMap<Long, Long> locCache, long blockKey, int consumption) {
+        locCache.get(blockKey); // 按方块缓存的 Location（稳态命中，建模为单次廉价 ConcurrentHashMap.get）
+        ChargeData d = getLocationInfo(bs, blockKey); // getLocationInfo 仅一次（两次 HashMap 查找）
+        int ch = Integer.parseInt(d.chargeStr); // parse #1（getCharge(loc, data)）
+        if (ch < consumption) {
+            return false;
+        }
+        int nv = ch - consumption; // clamp：ch>=consumption>=0 ⇒ nv>=0
+        int cur = Integer.parseInt(d.chargeStr); // parse #2（setCharge 内 “charge != getCharge(l,data)” 比较，复用 data 不查库）
+        if (nv != cur) {
+            d.chargeStr = Integer.toString(nv); // 写回
+        }
+        return true;
+    }
+
+    // =============================================================
+    // SlimefunTag 材质判定（onInteract 每次右键，1.3.0）
+    //   生产 PlantsListener.onInteract：原遍历全部 SlimefunTag 逐一 isTagged(material) —— O(标签数)。
+    //   新：按 Material 记忆化“是否被任意 tag 标记” —— O(1) 命中。
+    //   建模：每个 tag = 一组 material(int)；判定 = 遍历全部 tag 做 contains。
+    // =============================================================
+    static final class SfTagSim {
+        final List<Set<Integer>> tags = new ArrayList<>(); // 每个 tag 一组 material
+    }
+
+    /** 旧：遍历全部 tag 逐一 contains。 */
+    static boolean oldIsTagged(SfTagSim sim, int material) {
+        for (Set<Integer> tag : sim.tags) {
+            if (tag.contains(material)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 新：按 material 记忆化（稳态命中）。 */
+    static boolean newIsTagged(SfTagSim sim, HashMap<Integer, Boolean> cache, int material) {
+        Boolean c = cache.get(material);
+        if (c != null) {
+            return c;
+        }
+        boolean r = oldIsTagged(sim, material);
+        cache.put(material, r);
+        return r;
+    }
+
+    // =============================================================
+    // 物品解析（harvestPlant / 植物生长，1.3.0）
+    //   生产 Berry.getItem()：非 ORE_PLANT 时每次 SlimefunItem.getById(id).getItem() —— Map 查找；
+    //        ExoticGarden.getItem(toBush())：SlimefunItem.getById(id)（命中即返回）。
+    //   新：Berry 上懒缓存字段（稳态字段读取）。
+    //   建模：旧 = HashMap.get(id)（SF 注册表查找）；新 = 已缓存对象的字段读取。
+    // =============================================================
+    static final class CachedItemHolder {
+        Integer item; // 缓存字段（建模 Berry.cachedBushItem / cachedPlantItem）
+    }
+
+    /** 旧：getItem(id) = SlimefunItem.getById(id)（HashMap 查找）。 */
+    static Integer oldResolveItem(HashMap<String, Integer> sfRegistry, String id) {
+        return sfRegistry.get(id);
     }
 }

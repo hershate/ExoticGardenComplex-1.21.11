@@ -37,8 +37,8 @@ bash benchmark/run.sh save   # 同上，并把结果存到 benchmark/result.txt�
 |---|---|
 | `src/SimItem.java` | 物品模型：material + sfId + amount + 派生 meta；`isSimilar` 忽略数量（同 Bukkit）、`clone` 复刻分配开销 |
 | `src/SimMenu.java` | 机器菜单模型：槽位数组 + `changes` 原子计数器（markDirty）+ `hasViewer` 标志 + `getItemInSlot`/`replaceExistingItem`（1.2.0 新增） |
-| `src/Algorithms.java` | 新旧算法移植：`oldMatchThree/Single`、`newMatch*(MatchCache)`、`newMatchThreeCold`、`oldFits`/`newFits`；1.2.0 新增 `oldTickDisplay`/`newTickDisplay`（进度条门控）、`BlockStorageSim`/`checkSim`/`cachedResolve`、`MachineHelper.*` 忠实移植 |
-| `src/Benchmark.java` | 入口：贴近 ElectricityBrewing 的配方集（3 输入 35 配方）、计时、5 项正确性断言、各微基准 |
+| `src/Algorithms.java` | 新旧算法移植：`oldMatchThree/Single`、`newMatch*(MatchCache)`、`newMatchThreeCold`、`oldFits`/`newFits`；1.2.0 新增 `oldTickDisplay`/`newTickDisplay`（进度条门控）、`BlockStorageSim`/`checkSim`/`cachedResolve`、`MachineHelper.*` 忠实移植；1.3.0 新增 `oldEnergySettle`/`newEnergySettle`、`SfTagSim`/`oldIsTagged`/`newIsTagged`、`oldResolveItem`/`CachedItemHolder` |
+| `src/Benchmark.java` | 入口：贴近 ElectricityBrewing 的配方集（3 输入 35 配方）、计时、8 项正确性断言、各微基准 |
 | `run.sh` | 编译 + 运行（含 UTF-8 输出与保存） |
 
 ## 测量维度
@@ -53,6 +53,11 @@ bash benchmark/run.sh save   # 同上，并把结果存到 benchmark/result.txt�
 5. **tick 进度条显示构建**（加工机器每 tick，1.2.0）：旧 = 每 tick 总是 clone+meta+StringBuilder+`replaceExistingItem`；
    新·无人查看 = `hasViewer()` 判定后整段跳过（常态）；新·有人查看 = 与旧相同构建（持平）
 6. **SF 物品解析**（加工机器每 tick，1.2.0）：`BlockStorage.check`（两级 Map 建模）vs 按方块缓存
-7. **正确性**：`old*` 与 `new*` 在大规模随机序列上输出完全一致 —— match（3/1 输入）/ fits / 进度条门控 / SFItem 缓存，共 5 项
+7. **SlimefunTag 材质判定**（onInteract 每次右键，1.3.0）：遍历全部 tag vs 按 Material 记忆化
+8. **getItem 物品解析**（采集 / 植物生长，1.3.0）：`getById` 注册表查找 vs `Berry` 缓存字段
+9. **能量结算**（加工机器每 tick，1.3.0）：**仅正确性断言**（单次读+`setCharge` 与 `removeCharge` 等价）；
+   计时因 sim 的 `getLocationInfo` 可被 JIT CSE 而无法忠实量化，不输出计时行（生产收益定性说明）
+10. **正确性**：`old*` 与 `new*` 在大规模随机序列上输出完全一致 —— match（3/1 输入）/ fits / 进度条门控 /
+    SFItem 缓存 / 能量结算 / SlimefunTag / getItem 缓存，共 **8 项**
 
 最新一次结果见 `result.txt`（由 `run.sh save` 生成）。

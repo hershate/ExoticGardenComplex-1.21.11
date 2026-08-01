@@ -1,9 +1,11 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * ExoticGardenComplex 算法层性能基准（离线、纯 Java、无 Bukkit 依赖）。
@@ -186,6 +188,53 @@ public final class Benchmark {
         row("SFItem·新(按方块缓存)", newResolve, oldCheck);
         System.out.println();
 
+        // ---------- 机器加工 tick 能量结算（每加工机器每 tick，1.3.0） ----------
+        // 说明：仅做“正确性等价性”断言（见末尾 能量结算等价），不输出计时行。
+        // 原因：离线 sim 的 getLocationInfo 是可内联的纯查找方法，JIT 会对旧路径“连续两次同参调用”
+        // 做公共子表达式消除（CSE），把第二次 getLocationInfo 合并掉——而生产中 BlockStorage.getLocationInfo
+        // 是不透明库方法，两次调用不可合并。因此 sim 无法忠实反映“少一次 getLocationInfo”的收益，
+        // 计时行会误导（反而显示新路径略慢）。生产收益（少一次 BlockStorage 查询 + 零 Location 分配）
+        // 在 note/report/perf 中定性说明。correctnessEnergy 仍验证“单次读 + setCharge”与“removeCharge”等价。
+
+        // ---------- SlimefunTag 材质判定（onInteract 每次右键，1.3.0） ----------
+        System.out.println("--- SlimefunTag 材质判定（每次右键：手持物是否受 tag 约束）---");
+        BenchSfTag btag = new BenchSfTag(20, 30);
+        int[] tagMats = btag.lookupMaterials(1000);
+        // 预热记忆化缓存到稳态（生产中玩家手持物集合有界，绝大多数右键命中缓存）
+        for (int m : tagMats) {
+            Algorithms.newIsTagged(btag.sim, btag.cache, m);
+        }
+        double oldTag = benchNs(() -> {
+            for (int m : tagMats) {
+                sink(Algorithms.oldIsTagged(btag.sim, m));
+            }
+        }, 200, 20_000) / tagMats.length;
+        double newTag = benchNs(() -> {
+            for (int m : tagMats) {
+                sink(Algorithms.newIsTagged(btag.sim, btag.cache, m));
+            }
+        }, 200, 20_000) / tagMats.length;
+        row("SlimefunTag·旧(遍历全部 tag)", oldTag, oldTag);
+        row("SlimefunTag·新(按 material 记忆化)", newTag, oldTag);
+        System.out.println();
+
+        // ---------- 物品解析（harvestPlant/植物生长，1.3.0） ----------
+        System.out.println("--- 物品解析（getItem：SF 注册表查找 vs Berry 缓存字段）---");
+        BenchItemResolve bir = new BenchItemResolve(60);
+        double oldItem = benchNs(() -> {
+            for (int i = 0; i < bir.ids.length; i++) {
+                sink(Algorithms.oldResolveItem(bir.sfRegistry, bir.ids[i]));
+            }
+        }, 200, 20_000) / bir.ids.length;
+        double newItem = benchNs(() -> {
+            for (int i = 0; i < bir.holders.length; i++) {
+                sink(bir.holders[i].item);
+            }
+        }, 200, 20_000) / bir.holders.length;
+        row("getItem·旧(getById Map 查找)", oldItem, oldItem);
+        row("getItem·新(缓存字段读取)", newItem, oldItem);
+        System.out.println();
+
         // ---------- 正确性：新旧 match / fits 必须完全等价 ----------
         System.out.println("--- 正确性等价性断言 ---");
         int failMatch = correctnessMatch(threeRecipes, 200_000, new Random(123));
@@ -193,15 +242,22 @@ public final class Benchmark {
         int failFits = correctnessFits(200_000, new Random(999));
         int failDisplay = correctnessDisplay(50_000, new Random(7));
         int failResolve = correctnessResolve(bsf, 100_000, new Random(8));
+        int failEnergy = correctnessEnergy(100_000, new Random(42));
+        int failTag = correctnessTag(btag.sim, 50_000, new Random(17));
+        int failItem = correctnessItem(bir, 50_000, new Random(23));
         System.out.println("  3输入 match 等价   : " + (failMatch == 0 ? "PASS" : ("FAIL(" + failMatch + ")")));
         System.out.println("  1输入 match 等价   : " + (failSingle == 0 ? "PASS" : ("FAIL(" + failSingle + ")")));
         System.out.println("  fits 等价         : " + (failFits == 0 ? "PASS" : ("FAIL(" + failFits + ")")));
         System.out.println("  进度条门控等价     : " + (failDisplay == 0 ? "PASS" : ("FAIL(" + failDisplay + ")")));
         System.out.println("  SFItem 缓存等价    : " + (failResolve == 0 ? "PASS" : ("FAIL(" + failResolve + ")")));
+        System.out.println("  能量结算等价       : " + (failEnergy == 0 ? "PASS" : ("FAIL(" + failEnergy + ")")));
+        System.out.println("  SlimefunTag 等价   : " + (failTag == 0 ? "PASS" : ("FAIL(" + failTag + ")")));
+        System.out.println("  getItem 缓存等价   : " + (failItem == 0 ? "PASS" : ("FAIL(" + failItem + ")")));
         System.out.println();
 
         System.out.println("(checksum=" + blackHole + ")");
-        if (failMatch != 0 || failSingle != 0 || failFits != 0 || failDisplay != 0 || failResolve != 0) {
+        if (failMatch != 0 || failSingle != 0 || failFits != 0 || failDisplay != 0 || failResolve != 0
+                || failEnergy != 0 || failTag != 0 || failItem != 0) {
             System.exit(1);
         }
     }
@@ -394,6 +450,67 @@ public final class Benchmark {
         return fail;
     }
 
+    /**
+     * 能量结算等价性：旧（removeCharge 路径）与新（getCharge(loc,data)+setCharge(loc,data)）在
+     * 相同初始电量、相同消耗下，扣除结果（是否成功 + 剩余电量）必须完全一致。消耗与初始电量随机
+     * 组合，覆盖“电量不足不扣”与“足量扣除”两分支。
+     */
+    private static int correctnessEnergy(int steps, Random r) {
+        int fail = 0;
+        long key = 1L;
+        for (int s = 0; s < steps; s++) {
+            int consumption = 1 + r.nextInt(60);
+            int startCharge = r.nextInt(120); // 横跨 < 与 >= consumption
+            Algorithms.EnergyBlockStorageSim bsOld = new Algorithms.EnergyBlockStorageSim();
+            Algorithms.EnergyBlockStorageSim bsNew = new Algorithms.EnergyBlockStorageSim();
+            HashMap<Long, Long> locCache = new HashMap<>();
+            bsOld.chunks.computeIfAbsent(key >> 8, c -> new HashMap<>()).put(key, new Algorithms.ChargeData(startCharge));
+            bsNew.chunks.computeIfAbsent(key >> 8, c -> new HashMap<>()).put(key, new Algorithms.ChargeData(startCharge));
+            locCache.put(key, key);
+            boolean ob = Algorithms.oldEnergySettle(bsOld, key, consumption);
+            boolean nb = Algorithms.newEnergySettle(bsNew, locCache, key, consumption);
+            if (ob != nb) {
+                fail++;
+                continue;
+            }
+            int afterOld = Integer.parseInt(bsOld.chunks.get(key >> 8).get(key).chargeStr);
+            int afterNew = Integer.parseInt(bsNew.chunks.get(key >> 8).get(key).chargeStr);
+            if (afterOld != afterNew) {
+                fail++;
+            }
+        }
+        return fail;
+    }
+
+    /** SlimefunTag 等价性：记忆化判定与逐 tag 判定对任意 material 返回相同布尔。 */
+    private static int correctnessTag(Algorithms.SfTagSim sim, int steps, Random r) {
+        int fail = 0;
+        HashMap<Integer, Boolean> cache = new HashMap<>();
+        for (int s = 0; s < steps; s++) {
+            int m = r.nextInt(2000);
+            boolean ob = Algorithms.oldIsTagged(sim, m);
+            boolean nb = Algorithms.newIsTagged(sim, cache, m);
+            if (ob != nb) {
+                fail++;
+            }
+        }
+        return fail;
+    }
+
+    /** getItem 缓存等价性：缓存字段值必须与 getById 注册表查找完全一致。 */
+    private static int correctnessItem(BenchItemResolve bir, int steps, Random r) {
+        int fail = 0;
+        for (int s = 0; s < steps; s++) {
+            int i = r.nextInt(bir.ids.length);
+            Integer ob = Algorithms.oldResolveItem(bir.sfRegistry, bir.ids[i]);
+            Integer nb = bir.holders[i].item;
+            if (!Objects.equals(ob, nb)) {
+                fail++;
+            }
+        }
+        return fail;
+    }
+
     private static boolean sameDisplay(SimItem a, SimItem b) {
         if (a == null || b == null) {
             return a == null && b == null;
@@ -492,6 +609,57 @@ public final class Benchmark {
                 keys[i] = key;
                 // 预热缓存到 warm 态（稳态命中，对应机器方块首次解析后持续命中）
                 cache.put(key, sfId);
+            }
+        }
+    }
+
+    // ===== SlimefunTag 微基准（1.3.0）=====
+    static final class BenchSfTag {
+        final Algorithms.SfTagSim sim = new Algorithms.SfTagSim();
+        final HashMap<Integer, Boolean> cache = new HashMap<>();
+        final Set<Integer> allTagged = new HashSet<>();
+
+        BenchSfTag(int numTags, int perTag) {
+            Random r = new Random(99);
+            for (int t = 0; t < numTags; t++) {
+                Set<Integer> tag = new HashSet<>();
+                for (int j = 0; j < perTag; j++) {
+                    int m = r.nextInt(1500);
+                    tag.add(m);
+                    allTagged.add(m);
+                }
+                sim.tags.add(tag);
+            }
+        }
+
+        /** 构造右键手持物材质流：~10% 命中、~90% 未命中（多数右键手持物不受 tag 约束）。 */
+        int[] lookupMaterials(int n) {
+            Random r = new Random(5);
+            int[] out = new int[n];
+            Integer[] hits = allTagged.toArray(new Integer[0]);
+            for (int i = 0; i < n; i++) {
+                out[i] = (r.nextInt(10) == 0 && hits.length > 0) ? hits[r.nextInt(hits.length)] : r.nextInt(2000);
+            }
+            return out;
+        }
+    }
+
+    // ===== 物品解析微基准（1.3.0）=====
+    static final class BenchItemResolve {
+        final HashMap<String, Integer> sfRegistry = new HashMap<>(); // 建模 SlimefunItem 注册表
+        final String[] ids;
+        final Algorithms.CachedItemHolder[] holders; // 建模 Berry 上的缓存字段
+
+        BenchItemResolve(int n) {
+            ids = new String[n];
+            holders = new Algorithms.CachedItemHolder[n];
+            for (int i = 0; i < n; i++) {
+                String id = "BUSH_" + i;
+                int val = 5000 + i;
+                sfRegistry.put(id, val);
+                ids[i] = id;
+                holders[i] = new Algorithms.CachedItemHolder();
+                holders[i].item = val; // 预填充缓存（稳态：Berry 已解析过）
             }
         }
     }

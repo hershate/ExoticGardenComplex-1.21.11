@@ -5,38 +5,46 @@
 JVM: 21.0.12 | processors: 16
 
 --- 配方匹配（3 输入 / 35 配方，每次 = 一个机器一个 tick 的 idle 分支）---
-  不匹配·旧(每tick全扫)                        208.0 ns/op   (1.00x)
-  不匹配·新冷启动                              258.7 ns/op   (0.80x)
-  不匹配·新命中缓存(稳态)                          45.2 ns/op   (4.60x)
-  命中·旧(每tick全扫)                         539.2 ns/op   (1.00x)
-  命中·新命中缓存(稳态)                           42.7 ns/op   (12.64x)
-  空输入·旧                                 280.2 ns/op   (1.00x)
-  空输入·新命中缓存                              12.8 ns/op   (21.82x)
+  不匹配·旧(每tick全扫)                        223.2 ns/op   (1.00x)
+  不匹配·新冷启动                              265.3 ns/op   (0.84x)
+  不匹配·新命中缓存(稳态)                          43.7 ns/op   (5.11x)
+  命中·旧(每tick全扫)                         521.7 ns/op   (1.00x)
+  命中·新命中缓存(稳态)                           44.6 ns/op   (11.69x)
+  空输入·旧                                 275.1 ns/op   (1.00x)
+  空输入·新命中缓存                              12.9 ns/op   (21.26x)
 
 --- 配方匹配（1 输入 / 3 配方）---
-  不匹配·旧(每tick全扫)                         11.6 ns/op   (1.00x)
-  不匹配·新命中缓存(稳态)                           8.8 ns/op   (1.32x)
+  不匹配·旧(每tick全扫)                         11.0 ns/op   (1.00x)
+  不匹配·新命中缓存(稳态)                           8.5 ns/op   (1.30x)
 
 --- fits（输出槽容量校验，4 槽位）---
-  fits·旧(clone 模拟)                       79.1 ns/op   (1.00x)
-  fits·新(int 金额零 clone)                  27.2 ns/op   (2.91x)
+  fits·旧(clone 模拟)                       77.4 ns/op   (1.00x)
+  fits·新(int 金额零 clone)                  27.2 ns/op   (2.85x)
 
 --- 采集：berry 按 id 查表（~60 项）---
   berry·旧(线性 equalsIgnoreCase)          152.7 ns/op   (1.00x)
-  berry·新(HashMap)                        5.6 ns/op   (27.44x)
+  berry·新(HashMap)                        5.5 ns/op   (27.73x)
 
 --- 副产物 getSubRecipes()：每次重建 vs 缓存（35 项）---
-  subRecipes·旧(每次重建)                    130.1 ns/op   (1.00x)
-  subRecipes·新(缓存)                       27.0 ns/op   (4.82x)
+  subRecipes·旧(每次重建)                    124.9 ns/op   (1.00x)
+  subRecipes·新(缓存)                       26.8 ns/op   (4.65x)
 
 --- tick 处理：进度条显示构建（每机器每 tick）---
-  进度条·旧(每tick重建)                        224.6 ns/op   (1.00x)
-  进度条·新(无人查看·常态)                          1.9 ns/op   (118.43x)
-  进度条·新(有人查看)                           182.6 ns/op   (1.23x)
+  进度条·旧(每tick重建)                        230.2 ns/op   (1.00x)
+  进度条·新(无人查看·常态)                          3.0 ns/op   (75.63x)
+  进度条·新(有人查看)                           174.7 ns/op   (1.32x)
 
 --- SF 物品解析：BlockStorage.check vs 按方块缓存 ---
-  SFItem·旧(BlockStorage.check)            6.9 ns/op   (1.00x)
-  SFItem·新(按方块缓存)                         4.4 ns/op   (1.58x)
+  SFItem·旧(BlockStorage.check)            6.6 ns/op   (1.00x)
+  SFItem·新(按方块缓存)                         4.1 ns/op   (1.60x)
+
+--- SlimefunTag 材质判定（每次右键：手持物是否受 tag 约束）---
+  SlimefunTag·旧(遍历全部 tag)                84.3 ns/op   (1.00x)
+  SlimefunTag·新(按 material 记忆化)           5.4 ns/op   (15.63x)
+
+--- 物品解析（getItem：SF 注册表查找 vs Berry 缓存字段）---
+  getItem·旧(getById Map 查找)              10.9 ns/op   (1.00x)
+  getItem·新(缓存字段读取)                       3.7 ns/op   (2.92x)
 
 --- 正确性等价性断言 ---
   3输入 match 等价   : PASS
@@ -44,5 +52,8 @@ JVM: 21.0.12 | processors: 16
   fits 等价         : PASS
   进度条门控等价     : PASS
   SFItem 缓存等价    : PASS
+  能量结算等价       : PASS
+  SlimefunTag 等价   : PASS
+  getItem 缓存等价   : PASS
 
 (checksum=1290429923)
