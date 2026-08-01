@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -652,5 +653,42 @@ public final class Algorithms {
     /** 旧：getItem(id) = SlimefunItem.getById(id)（HashMap 查找）。 */
     static Integer oldResolveItem(HashMap<String, Integer> sfRegistry, String id) {
         return sfRegistry.get(id);
+    }
+
+    // =============================================================
+    // FoodListener.onUse 物品识别（每次交互事件，1.3.0）
+    //   生产：item = SlimefunItem.getByItem(CustomItemStack.create(hand, 1))。
+    //   REF 的 getByItem(ItemStack) 仅读 Material（快速负向 Set 查找）+ PDC 中的 SF id（getItemData）
+    //   + getById(id)，并校验 Material 与模板一致；全程不读 amount。故 create(hand,1) 的克隆
+    //   纯属多余分配。建模 getByItem：sfMaterials.contains(material) + 读 sfId(PDC) + getById。
+    //   旧 = 先 clone(hand) 再 getByItem(clone)；新 = 直接 getByItem(hand)。
+    // =============================================================
+    static final class GetByItemSim {
+        final Set<Integer> sfMaterials = new HashSet<>();           // getSlimefunItemMaterials()
+        final HashMap<Integer, Integer> idToItem = new HashMap<>();  // SlimefunItem.getById(id)
+    }
+
+    private static Integer getByItemSim(GetByItemSim sim, SimItem item) {
+        // 快速负向：material 不在任何 SF 物品模板中 → 直接 null（生产：单次 Set 查找）
+        if (!sim.sfMaterials.contains(item.material)) {
+            return null;
+        }
+        // getItemDataService().getItemData(item)：读 PDC 得 SF id（建模为 item.sfId；-1 = 非 SF 物品）
+        int id = item.sfId;
+        if (id < 0) {
+            return null;
+        }
+        return sim.idToItem.get(id); // SlimefunItem.getById(id)
+    }
+
+    /** 旧：先克隆（CustomItemStack.create(hand,1)）再 getByItem。 */
+    static Integer oldGetByItem(GetByItemSim sim, SimItem hand) {
+        SimItem copy = hand.clone();
+        return getByItemSim(sim, copy);
+    }
+
+    /** 新：直接 getByItem(hand)，省去克隆（getByItem 不读 amount）。 */
+    static Integer newGetByItem(GetByItemSim sim, SimItem hand) {
+        return getByItemSim(sim, hand);
     }
 }

@@ -235,6 +235,23 @@ public final class Benchmark {
         row("getItem·新(缓存字段读取)", newItem, oldItem);
         System.out.println();
 
+        // ---------- getByItem 物品识别（FoodListener.onUse 每次交互，1.3.0） ----------
+        System.out.println("--- getByItem 物品识别（FoodListener：先克隆 vs 直接）---");
+        BenchGetByItem bgi = new BenchGetByItem(60);
+        double oldGbi = benchNs(() -> {
+            for (int i = 0; i < bgi.hands.length; i++) {
+                sink(Algorithms.oldGetByItem(bgi.sim, bgi.hands[i]));
+            }
+        }, 200, 20_000) / bgi.hands.length;
+        double newGbi = benchNs(() -> {
+            for (int i = 0; i < bgi.hands.length; i++) {
+                sink(Algorithms.newGetByItem(bgi.sim, bgi.hands[i]));
+            }
+        }, 200, 20_000) / bgi.hands.length;
+        row("getByItem·旧(先 clone(hand,1))", oldGbi, oldGbi);
+        row("getByItem·新(直接 hand)", newGbi, oldGbi);
+        System.out.println();
+
         // ---------- 正确性：新旧 match / fits 必须完全等价 ----------
         System.out.println("--- 正确性等价性断言 ---");
         int failMatch = correctnessMatch(threeRecipes, 200_000, new Random(123));
@@ -245,6 +262,7 @@ public final class Benchmark {
         int failEnergy = correctnessEnergy(100_000, new Random(42));
         int failTag = correctnessTag(btag.sim, 50_000, new Random(17));
         int failItem = correctnessItem(bir, 50_000, new Random(23));
+        int failGetByItem = correctnessGetByItem(bgi, 50_000, new Random(29));
         System.out.println("  3输入 match 等价   : " + (failMatch == 0 ? "PASS" : ("FAIL(" + failMatch + ")")));
         System.out.println("  1输入 match 等价   : " + (failSingle == 0 ? "PASS" : ("FAIL(" + failSingle + ")")));
         System.out.println("  fits 等价         : " + (failFits == 0 ? "PASS" : ("FAIL(" + failFits + ")")));
@@ -253,11 +271,12 @@ public final class Benchmark {
         System.out.println("  能量结算等价       : " + (failEnergy == 0 ? "PASS" : ("FAIL(" + failEnergy + ")")));
         System.out.println("  SlimefunTag 等价   : " + (failTag == 0 ? "PASS" : ("FAIL(" + failTag + ")")));
         System.out.println("  getItem 缓存等价   : " + (failItem == 0 ? "PASS" : ("FAIL(" + failItem + ")")));
+        System.out.println("  getByItem 克隆等价 : " + (failGetByItem == 0 ? "PASS" : ("FAIL(" + failGetByItem + ")")));
         System.out.println();
 
         System.out.println("(checksum=" + blackHole + ")");
         if (failMatch != 0 || failSingle != 0 || failFits != 0 || failDisplay != 0 || failResolve != 0
-                || failEnergy != 0 || failTag != 0 || failItem != 0) {
+                || failEnergy != 0 || failTag != 0 || failItem != 0 || failGetByItem != 0) {
             System.exit(1);
         }
     }
@@ -511,6 +530,33 @@ public final class Benchmark {
         return fail;
     }
 
+    /**
+     * getByItem 克隆等价性：getByItem 不读 amount，故 clone(hand,1) 与直接 hand 结果必须完全一致
+     * （含 SF 物品命中、非 SF 物品返回 null、material 不在 SF 材质集合的快速负向路径）。
+     */
+    private static int correctnessGetByItem(BenchGetByItem bgi, int steps, Random r) {
+        int fail = 0;
+        for (int s = 0; s < steps; s++) {
+            int i = r.nextInt(bgi.hands.length);
+            Integer ob = Algorithms.oldGetByItem(bgi.sim, bgi.hands[i]);
+            Integer nb = Algorithms.newGetByItem(bgi.sim, bgi.hands[i]);
+            if (!Objects.equals(ob, nb)) {
+                fail++;
+            }
+        }
+        // 非 SF 物品（sfId=-1，amount 随机）：克隆与否都应为 null
+        SimItem nonSf = SimItem.of(50, -1, 5);
+        if (!Objects.equals(Algorithms.oldGetByItem(bgi.sim, nonSf), Algorithms.newGetByItem(bgi.sim, nonSf))) {
+            fail++;
+        }
+        // material 不在 SF 集合（快速负向路径）：克隆与否都应为 null
+        SimItem miss = SimItem.of(77777, 1000, 5);
+        if (!Objects.equals(Algorithms.oldGetByItem(bgi.sim, miss), Algorithms.newGetByItem(bgi.sim, miss))) {
+            fail++;
+        }
+        return fail;
+    }
+
     private static boolean sameDisplay(SimItem a, SimItem b) {
         if (a == null || b == null) {
             return a == null && b == null;
@@ -660,6 +706,25 @@ public final class Benchmark {
                 ids[i] = id;
                 holders[i] = new Algorithms.CachedItemHolder();
                 holders[i].item = val; // 预填充缓存（稳态：Berry 已解析过）
+            }
+        }
+    }
+
+    // ===== getByItem 微基准（1.3.0）=====
+    static final class BenchGetByItem {
+        final Algorithms.GetByItemSim sim = new Algorithms.GetByItemSim();
+        final SimItem[] hands;
+
+        BenchGetByItem(int n) {
+            hands = new SimItem[n];
+            Random r = new Random(31);
+            for (int i = 0; i < n; i++) {
+                int sfId = 1000 + i;
+                int mat = 50 + (i % 10); // 受限的 material 集合（命中 SF 材质表）
+                sim.sfMaterials.add(mat);
+                sim.idToItem.put(sfId, sfId);
+                // 玩家手持物：SF 物品（有 sfId、material 命中）+ amount 随机（getByItem 忽略 amount）
+                hands[i] = SimItem.of(mat, sfId, 1 + r.nextInt(64));
             }
         }
     }
