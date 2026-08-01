@@ -1,7 +1,6 @@
 package io.github.thebusybiscuit.exoticgarden;
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
-import io.github.thebusybiscuit.slimefun4.libraries.dough.items.CustomItemStack;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -35,7 +34,9 @@ public class FoodListener implements Listener {
 
         switch (hand) {
             case HAND:
-                item = SlimefunItem.getByItem(CustomItemStack.create(e.getPlayer().getInventory().getItemInMainHand(), 1));
+                // getByItem 仅读取 Material + PersistentDataContainer(SF id)，与 amount 无关，
+                // 故无需 CustomItemStack.create(hand, 1) 复制（原每次交互克隆一次物品，纯属多余分配）。
+                item = SlimefunItem.getByItem(e.getPlayer().getInventory().getItemInMainHand());
                 if (item instanceof EGPlant && (
                         (EGPlant) item).isEdible()) {
                     ((EGPlant) item).restoreHunger(e.getPlayer());
@@ -51,7 +52,7 @@ public class FoodListener implements Listener {
 
 
             case OFF_HAND:
-                item = SlimefunItem.getByItem(CustomItemStack.create(e.getPlayer().getInventory().getItemInOffHand(), 1));
+                item = SlimefunItem.getByItem(e.getPlayer().getInventory().getItemInOffHand());
                 if (item instanceof EGPlant && (
                         (EGPlant) item).isEdible()) {
                     ((EGPlant) item).restoreHunger(e.getPlayer());
