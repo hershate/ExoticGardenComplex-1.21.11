@@ -102,8 +102,11 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
    `cachedPlantItem`/`cachedBushItem`。基准（getItem：注册表查找 vs 缓存字段）**10.9→3.7 ns（约 2.9×）**。
 3. **getByItem 物品识别（FoodListener.onUse 每次交互）**：`getByItem(CustomItemStack.create(hand,1))` 改为直接
    `getByItem(hand)`——REF 的 `getByItem` 只读 Material + PDC(SF id)，不读 amount，故克隆多余。基准（先 clone vs 直接）
-   **31.2→13.5 ns（约 2.3×）**。
-4. **机器能量消耗路径（DefaultGUI/ThreeInputGUI）—— 兼稳定性修复**：
+   **22.9→10.0 ns（约 2.3×）**。
+4. **getByItem 预过滤（FoodListener.onPlace/onEquip 每次放方块/护甲点击）**：原“先 getByItem 再判
+   `instanceof EGPlant && type==PLAYER_HEAD`”把廉价 type 判断后置；EGPlant 均 PLAYER_HEAD，改为 type 前置短路
+   （仅 PLAYER_HEAD 才 getByItem），语义等价（AND 重排）。基准（总是 getByItem vs PLAYER_HEAD 短路）**3.5→1.4 ns（约 2.5×）**。
+5. **机器能量消耗路径（DefaultGUI/ThreeInputGUI）—— 兼稳定性修复**：
    - **修复 Bug**：原 `component.addCharge(b.getLocation(), -getEnergyConsumption())` 在 REF（4.9.5）的 `addCharge`
      中因 `Validate.isTrue(charge>0)` 抛 `IllegalArgumentException`（负数）——所有可充能机器每加工 tick 必抛
      异常且不扣能量。改为 `getCharge(loc,data)` + `setCharge(loc,data,charge-consumption)` 单次读路径，
@@ -114,7 +117,7 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
      `getLocationInfo` 可被 JIT 公共子表达式消除（CSE）而无法忠实量化（生产中为不透明库方法、不可合并），
      生产收益为“每加工机器每 tick 少一次 BlockStorage 查询 + 零 Location 分配”，属定性收益。
 
-离线等价性断言由 5 项增至 **9 项**（新增 能量结算 / SlimefunTag / getItem 缓存 / getByItem 克隆）。
+离线等价性断言由 5 项增至 **10 项**（新增 能量结算 / SlimefunTag / getItem 缓存 / getByItem 克隆 / onPlace-onEquip 预过滤）。
 
 ## 提交结构（细粒度 commit）
 
@@ -145,3 +148,6 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
 7. `perf(food)`: FoodListener.getByItem 去除多余克隆（getByItem 不读 amount）
 8. `perf(benchmark)`: 新增 getByItem 对照与正确性断言（等价性 8→9 项）
 9. `docs(note)`: 补充 getByItem 优化 + 等价性断言 8→9 项
+10. `perf(food)`: FoodListener.onPlace/onEquip getByItem 按 PLAYER_HEAD 预过滤短路
+11. `perf(benchmark)`: 新增 onPlace/onEquip 预过滤对照与正确性断言（等价性 9→10 项）
+12. `docs(note)`: 补充 onPlace/onEquip 预过滤 + 等价性断言 9→10 项
