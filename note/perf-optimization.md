@@ -1,8 +1,10 @@
-# 性能优化要点（1.0.0 → 1.1.0 → 1.2.0）
+# 性能优化要点（1.0.0 → 1.1.0 → 1.2.0 → 1.3.0）
 
-> 分支：`feature/perf-optimization`（从 `master` 拉，保护 1.0.0 检查点）
+> 分支：`feature/perf-optimization`（1.1.0/1.2.0）/ `feature/perf-optimization-2`（1.3.0，从 `master` 拉）
 > 红线：安全性 / 稳定性 / 兼容性不降；不引入新漏洞；玩家可见行为不变。
-> 量化：见 [report/perf/2026-07-31-perf-optimization.md](report/perf/2026-07-31-perf-optimization.md)
+> 量化：见 [report/perf/2026-07-31-perf-optimization.md](report/perf/2026-07-31-perf-optimization.md)、
+>       [report/perf/2026-07-31-machine-tick-viewer-gating.md](report/perf/2026-07-31-machine-tick-viewer-gating.md)、
+>       [report/perf/2026-08-01-perf-optimization-2.md](report/perf/2026-08-01-perf-optimization-2.md)
 >       与 `benchmark/`（`bash benchmark/run.sh` 可复现）。
 
 1.0.0 三轮加固后运行时开销上升。本次针对本插件**自身算法层**热点优化，不触碰 Slimefun/Paper 内部。
@@ -86,6 +88,31 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
 基准扩展：新增 [SimMenu](../benchmark/src/SimMenu.java) 模型 + `oldTickDisplay`/`newTickDisplay` +
 `BlockStorageSim`/`cachedResolve`；正确性断言由 3 项增至 **5 项**（新增“进度条门控等价”“SFItem 缓存等价”）。
 
+## 七、1.3.0 增量：事件路径 + 机器能量路径（2026-08-01）
+
+> 详见 [report/perf/2026-08-01-perf-optimization-2.md](report/perf/2026-08-01-perf-optimization-2.md)。
+
+针对 1.2.1 之后仍未优化的事件驱动高频路径与机器能量路径：
+
+1. **SlimefunTag 材质判定（onInteract 每次右键）**：原遍历全部 `SlimefunTag.values()` 逐一 `isTagged(material)`
+   （O(标签数)），改为按 `Material` 记忆化（`sfTaggedCache`，`ConcurrentHashMap<Material,Boolean>`）。
+   `SlimefunTag` 加载后不可变，结果恒定可永久缓存。基准 **84.3→5.4 ns（约 15.6×）**。
+2. **物品解析（Berry.getItem / getBushItem）**：`Berry.getItem()` 非 ORE_PLANT 时每次 `SlimefunItem.getById(id).getItem()`
+   （被采集、植物生长高频调用），`harvestPlant` 每次又 `getItem(toBush())`；改为 `Berry` 上的懒缓存字段
+   `cachedPlantItem`/`cachedBushItem`。基准（getItem：注册表查找 vs 缓存字段）**10.9→3.7 ns（约 2.9×）**。
+3. **机器能量消耗路径（DefaultGUI/ThreeInputGUI）—— 兼稳定性修复**：
+   - **修复 Bug**：原 `component.addCharge(b.getLocation(), -getEnergyConsumption())` 在 REF（4.9.5）的 `addCharge`
+     中因 `Validate.isTrue(charge>0)` 抛 `IllegalArgumentException`（负数）——所有可充能机器每加工 tick 必抛
+     异常且不扣能量。改为 `getCharge(loc,data)` + `setCharge(loc,data,charge-consumption)` 单次读路径，
+     机器现在真正按 `getEnergyConsumption()` 消耗电力（设计意图）。
+   - **性能**：原等价 `removeCharge` 内部重复 `getCharge`（又一次 `BlockStorage.getLocationInfo`）；改用 `Config`
+     重载复用同一次查询，少一次 BlockStorage 查询。新增 `locationCache` 按方块缓存 `Location`，零稳态分配。
+   - 离线基准仅保留**正确性等价断言**（单次读+`setCharge` 与 `removeCharge` 完全等价）；计时因 sim 的
+     `getLocationInfo` 可被 JIT 公共子表达式消除（CSE）而无法忠实量化（生产中为不透明库方法、不可合并），
+     生产收益为“每加工机器每 tick 少一次 BlockStorage 查询 + 零 Location 分配”，属定性收益。
+
+离线等价性断言由 5 项增至 **8 项**（新增 能量结算 / SlimefunTag / getItem 缓存）。
+
 ## 提交结构（细粒度 commit）
 
 1.1.0：
@@ -103,3 +130,11 @@ int 金额数组模拟，**零 `ItemStack.clone`**（旧实现每输出槽 clone
 2. `perf(machine)`: DefaultGUI/ThreeInputGUI 进度条按 hasViewer 门控 + SFItem 按方块缓存
 3. `fix(machine)`: ThreeInputGUI 第二构造器 break handler 补清 idleMatchCache/sfItemCache（修泄漏）
 4. `docs/test/chore`: 报告、版本 1.2.0、test.sh 产物名、note/benchmark 文档更新
+
+1.3.0：
+
+1. `fix(stability)`: 修复机器 addCharge(-x) 能量消耗 Bug（改 getCharge(loc,data)+setCharge 单次读）+ locationCache
+2. `perf(listener)`: PlantsListener.onInteract SlimefunTag 按 Material 记忆化
+3. `perf(items)`: Berry.getItem/getBushItem 懒缓存（harvestPlant 改用 getBushItem）
+4. `perf(benchmark)`: 新增 SlimefunTag / getItem / 能量结算对照与三项正确性断言
+5. `docs/chore`: 报告、版本 1.3.0、test.sh 产物名、note 文档更新

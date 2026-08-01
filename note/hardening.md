@@ -89,6 +89,25 @@
 
 **物品流转结论**：机器输入消耗（数量校验、槽位不重复）、产出（`fits` 检查）、副产物（副槽 `fits`）、采集（`clone`+`drop`）、食用（同步扣除）等路径均已核对，无刷物品 / 无凭空消失。加工中被破坏机器会损失正在加工的材料，与原版 Slimefun 行为一致（非本插件缺陷）。
 
+## 十、第四轮：机器能量消耗 Bug（1.3.0，2026-08-01）
+
+性能优化排查机器 tick 时发现：
+
+1. **`addCharge(-x)` 每 tick 抛异常且不扣能量（严重）**：[DefaultGUI.tick](../src/main/java/io/github/thebusybiscuit/exoticgarden/DefaultGUI.java) /
+   [ThreeInputGUI.tick](../src/main/java/io/github/thebusybiscuit/exoticgarden/ThreeInputGUI.java) 的加工分支写的是
+   `component.addCharge(b.getLocation(), -getEnergyConsumption())`。而 REF（`Slimefun 4.9.5`）的
+   `EnergyNetComponent.addCharge` 开头有 `Validate.isTrue(charge > 0, "You can only add a positive charge!")`——
+   传入负数（如 -16/-24/-32/-50）**直接抛 `IllegalArgumentException`**。所有可充能机器（种子分析机
+   capacity 1024 / 酒曲培养机 256 / 电力酿造机 I/II/III 256/512/768，`isChargeable()` 均为真）在**有足量电力时
+   每加工 tick 必抛异常、且不消耗能量**（被 Slimefun ticker 吞为事件报错）。表现为：日志每 tick 报错、电力不消耗
+   （等于免费加工）、进度不推进（`progress.put` 在抛异常之后执行不到）。
+   - 根因：从汉化版（含 xzavier0722 存储 + 老 dough）迁移到 REF 时，`ChargeableBlock.addCharge` 原可接受负数（减电），
+     而 REF 的 `EnergyNetComponent.addCharge` 校验 `charge > 0`，迁移未同步语义。
+   - 修复：改为 `getCharge(loc, data)` + `setCharge(loc, data, charge - consumption)` 的单次读路径（机器现在真正按
+     `getEnergyConsumption()` 消耗电力，符合设计意图）。同时附带性能收益（少一次 `BlockStorage.getLocationInfo` 查询 +
+     `locationCache` 零稳态 Location 分配），详见 [perf-optimization.md](perf-optimization.md) 七。
+   - 此前未被实机发现：项目一直仅做源码层编译 + 静态测试（无实机回归，见 [testing.md](testing.md) 5）。
+
 ## 构建与验证
 
 ```bash
