@@ -407,28 +407,17 @@ public class PlantsListener implements Listener {
             }
 
             if (e.getBlock().getType() == Material.SHORT_GRASS) {
+                // 草种子掉落延迟到下一 tick 再判定。原因：
+                // 1) Bukkit 的 BlockBreakEvent 在方块实际移除之前派发，事件当帧草仍是 SHORT_GRASS；
+                // 2) 领地保护插件（含 Slimefun 的 ProtectionManager 未对接的 Residence 等）可能在本事件
+                //    结束后以“还原方块”而非“取消事件”的方式把草放回。
+                // 若在事件当帧直接掉落，玩家在他人受保护领地内破坏草时会出现“草被还原、种子已掉落”，
+                // 可被无限重复触发（无限刷种子），并在高频重复下可能拖垮主线程 / 耗尽资源导致服务端崩溃。
+                // 改为下一 tick 确认草确实被破坏（方块变为 air）才掉落：还原式保护会把草放回（非 air），
+                // 此时直接跳过，任何保护机制都无法再触发掉落。正常破坏下一 tick 方块已是 air，行为不变。
                 if (!ExoticGarden.getGrassDrops().isEmpty() && e.getPlayer().getGameMode() != GameMode.CREATIVE) {
-                    Random random = ThreadLocalRandom.current();
-
-                    if (random.nextInt(100) < 6) {
-                        ItemStack[] items = ExoticGarden.getInstance().getGrassDropsArray();
-                        if (items != null && items.length > 0) {
-                            e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation(), items[random.nextInt(items.length)]);
-                        }
-                    }
-                    if (random.nextInt(100) < 3) {
-                        ItemStack grassSeeds = ExoticGarden.getGrassDrops().get("GRASS_SEEDS");
-                        if (grassSeeds != null) {
-                            e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation(), grassSeeds);
-                        }
-                    }
-                    
-                    if (random.nextInt(100) < 2) {
-                        ItemStack mysticSeed = ExoticGarden.getGrassDrops().get("MYSTIC_SEED");
-                        if (mysticSeed != null) {
-                            e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation(), mysticSeed);
-                        }
-                    }
+                    final Block grassBlock = e.getBlock();
+                    Bukkit.getScheduler().runTask(plugin, () -> dropGrassSeeds(grassBlock));
                 }
             } else {
                 ItemStack item = ExoticGarden.harvestPlant(e.getBlock());
@@ -437,6 +426,45 @@ public class PlantsListener implements Listener {
                     e.setCancelled(true);
                     e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation(), item);
                 }
+            }
+        }
+    }
+
+    /**
+     * 草种子掉落（在破坏事件之后的下一 tick 执行）。
+     *
+     * <p>仅在草确实被破坏（方块变为 air）时掉落。若领地保护插件把草还原回去，则方块仍非 air，
+     * 此处直接返回，杜绝“受保护领地内破坏草 → 草被还原 → 种子已掉落”的无限刷漏洞（及其在高频
+     * 重复下可能引发的服务端资源耗尽 / 主线程阻塞）。掉落物一律 {@link ItemStack#clone()}，
+     * 避免修改 {@link ExoticGarden#getGrassDrops()} 中共享的掉落池实例。</p>
+     */
+    private void dropGrassSeeds(Block grassBlock) {
+        // 还原式保护会把草放回 -> 方块非 air -> 不是真正破坏，直接跳过，杜绝无限刷。
+        if (!grassBlock.getType().isAir()) {
+            return;
+        }
+        Random random = ThreadLocalRandom.current();
+        Location loc = grassBlock.getLocation();
+
+        if (random.nextInt(100) < 6) {
+            ItemStack[] drops = ExoticGarden.getInstance().getGrassDropsArray();
+            if (drops != null && drops.length > 0) {
+                ItemStack drop = drops[random.nextInt(drops.length)];
+                if (drop != null && !drop.getType().isAir()) {
+                    grassBlock.getWorld().dropItemNaturally(loc, drop.clone());
+                }
+            }
+        }
+        if (random.nextInt(100) < 3) {
+            ItemStack grassSeeds = ExoticGarden.getGrassDrops().get("GRASS_SEEDS");
+            if (grassSeeds != null) {
+                grassBlock.getWorld().dropItemNaturally(loc, grassSeeds.clone());
+            }
+        }
+        if (random.nextInt(100) < 2) {
+            ItemStack mysticSeed = ExoticGarden.getGrassDrops().get("MYSTIC_SEED");
+            if (mysticSeed != null) {
+                grassBlock.getWorld().dropItemNaturally(loc, mysticSeed.clone());
             }
         }
     }
