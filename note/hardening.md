@@ -108,6 +108,28 @@
      `locationCache` 零稳态 Location 分配），详见 [perf-optimization.md](perf-optimization.md) 七。
    - 此前未被实机发现：项目一直仅做源码层编译 + 静态测试（无实机回归，见 [testing.md](testing.md) 5）。
 
+## 十一、第五轮：受保护领地内破坏草丛无限刷种子 / 服务端崩溃（1.3.1，2026-08-02，实机发现）
+
+实机测试发现：在他人受保护领地（如 Residence）内破坏草丛时，种子掉落判定仍被触发，且草被领地还原后可
+**无限重复触发**（无限刷种子）；高频下进一步导致服务端崩溃、重连后延时崩溃。详见
+[release/1.3.1.md](release/1.3.1.md)。
+
+1. **根因一：掉落门禁无法识别 Residence**。[PlantsListener.onHarvest](../src/main/java/io/github/thebusybiscuit/exoticgarden/listeners/PlantsListener.java)
+   草种子掉落分支的唯一门禁是 `Slimefun.getProtectionManager().hasPermission(player, loc, BREAK_BLOCK)`。
+   而 REF（`Slimefun 4.9.5`）**全源码无 `residence` 引用**——Slimefun 的 `ProtectionManager` 不对接 Residence；
+   `ExoticGarden.isResidenceEnabled()`（`onEnable` 仅置布尔标志）**从未被读取**（死代码）。故领地内门禁返回 `true`。
+2. **根因二：当帧掉落 + 事件时序**。`BlockBreakEvent` 在方块实际移除**之前**派发；Residence 等以“还原方块”
+   （而非取消事件）保护的插件会在事件结束后把草放回。原实现当帧即掉落 → 草还原、种子已掉落 → 无限刷。
+3. **崩溃机制（静态分析）**：本插件草掉落路径**不存在**单次掉落即可令服务端崩溃的递归/异常（事件异常被 Bukkit
+   吞为日志；掉落物均为合法 `ItemStack`；全仓无 `ItemSpawn/EntitySpawn/ItemMerge` 回调）。唯一能真正令服务端
+   **崩溃**（而非报错）的是该无限刷导致的**资源耗尽 / 主线程阻塞**（物品实体堆积、OOME、Paper watchdog 强杀）；
+   崩溃后落盘的物品实体在重连加载对应区块时再次被处理，即“重连后延时崩溃”。
+4. **修复**：掉落改为 `Bukkit.getScheduler().runTask` 延迟到下一 tick，仅当 `grassBlock.getType().isAir()`
+   （草确实被破坏）才掉落；还原式保护放回草（非 air）则 `return` 不掉落，任何保护机制都无法再触发。掉落物一律
+   `clone()`，避免修改共享掉落池实例。
+5. **待实机确认**：本仓库一贯无实机回归。无限刷根因明确、逻辑闭合（确定已修复）；服务端崩溃按分析系其后果，
+   应已一并消除，**建议实机复测**；若崩溃仍复现需提供完整堆栈定位是否存在独立根因。
+
 ## 构建与验证
 
 ```bash
