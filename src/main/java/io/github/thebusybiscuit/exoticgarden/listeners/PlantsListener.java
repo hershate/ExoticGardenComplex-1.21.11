@@ -439,12 +439,19 @@ public class PlantsListener implements Listener {
      * 避免修改 {@link ExoticGarden#getGrassDrops()} 中共享的掉落池实例。</p>
      */
     private void dropGrassSeeds(Block grassBlock) {
-        // 还原式保护会把草放回 -> 方块非 air -> 不是真正破坏，直接跳过，杜绝无限刷。
-        if (!grassBlock.getType().isAir()) {
+        // 诊断日志（1.3.1）：实机确认“领地内破坏草不再掉种子”是否生效。确认后可下调为 FINE 或移除。
+        // - SKIP：方块非 air，说明被领地保护还原 -> 不掉种子（修复生效）。
+        // - DROP：方块确为 air -> 正常掉落。若实机发现“领地内仍掉种子/仍卡”，但日志显示 DROP，
+        //   则说明该领地插件为延迟还原（晚于 1 tick），需改用更长延迟的二次校验。
+        Material type = grassBlock.getType();
+        if (!type.isAir()) {
+            plugin.getLogger().info("[grass-drop] SKIP at " + grassBlock.getLocation()
+                    + " : block=" + type + " (not air, likely protection-reverted) -> no seed dropped");
             return;
         }
         Random random = ThreadLocalRandom.current();
         Location loc = grassBlock.getLocation();
+        plugin.getLogger().info("[grass-drop] DROP at " + loc + " : block=AIR -> rolling seed drops");
 
         if (random.nextInt(100) < 6) {
             ItemStack[] drops = ExoticGarden.getInstance().getGrassDropsArray();
